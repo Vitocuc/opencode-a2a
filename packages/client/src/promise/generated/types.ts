@@ -353,6 +353,34 @@ export type JobStatus = "running" | "completed" | "error" | "cancelled"
 
 export type JobTime = { started: number; completed?: number }
 
+export type A2ACard10 = {
+  name: string
+  description: string
+  version: string
+  defaultInputModes: Array<string>
+  defaultOutputModes: Array<string>
+  skills: Array<{ id: string; name: string; description: string; tags: Array<string> }>
+  supportedInterfaces: Array<{ url: string; protocolBinding: string; protocolVersion: string }>
+  capabilities: { streaming: boolean; pushNotifications: boolean }
+  securitySchemes?: { [x: string]: { httpAuthSecurityScheme: { scheme: string } } }
+  securityRequirements?: Array<{ schemes: { [x: string]: { list: Array<string> } } }>
+}
+
+export type A2ACard03 = {
+  name: string
+  description: string
+  version: string
+  defaultInputModes: Array<string>
+  defaultOutputModes: Array<string>
+  skills: Array<{ id: string; name: string; description: string; tags: Array<string> }>
+  protocolVersion: string
+  url: string
+  preferredTransport: "JSONRPC"
+  capabilities: { streaming: boolean; pushNotifications: boolean; stateTransitionHistory: boolean }
+  securitySchemes?: { [x: string]: { type: "http"; scheme: string } }
+  security?: Array<{ [x: string]: Array<string> }>
+}
+
 export type ReferenceGitSource = { type: "git"; repository: string; branch?: string }
 
 export type VcsBranch = { current?: string; default?: string }
@@ -995,6 +1023,8 @@ export type JobImage = {
   path: string
   model: string
 }
+
+export type A2ACard = A2ACard10 | A2ACard03
 
 export type VcsInfo = { provider?: string; branch: VcsBranch }
 
@@ -2534,6 +2564,17 @@ export type ConfigEntry =
                 }
           }
         }
+        a2a?: {
+          agents?: {
+            [x: string]: {
+              url: string
+              description?: string
+              headers?: { [x: string]: string }
+              enabled?: boolean
+              timeout?: number
+            }
+          }
+        }
         compaction?: {
           auto?: boolean
           background?: boolean
@@ -2618,6 +2659,7 @@ export type ConfigEntry =
           media_blob?: boolean
           automations?: boolean
           artifacts?: boolean
+          a2a?: boolean
           video_generate?: boolean
           console_watches?: boolean
           mcp_events?: boolean
@@ -4784,6 +4826,13 @@ export type ExperimentalJobListInput = {
 }
 
 export type ExperimentalJobListOutput = { data: Array<JobInfo> }["data"]
+
+export type ExperimentalA2aCardInput = {
+  readonly location?: { readonly directory?: string | undefined } | undefined
+  readonly "a2a-version"?: string | undefined
+}
+
+export type ExperimentalA2aCardOutput = A2ACard
 
 export type ShellListInput = { readonly location?: { readonly directory?: string | undefined } | undefined }
 

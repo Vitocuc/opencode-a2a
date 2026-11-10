@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { ephemeral, inventory } from "./event.js"
 import { Permission } from "./permission.js"
 import { AbsolutePath, optional } from "./schema.js"
+import { ConfigA2A } from "./config/a2a.js"
 import { ConfigAgent } from "./config/agent.js"
 import { ConfigMedia } from "./config/media.js"
 import { ConfigCompaction } from "./config/compaction.js"
@@ -84,6 +85,9 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   mcp: ConfigMCP.Info.pipe(optional).annotate({
     description: "MCP server configuration",
+  }),
+  a2a: ConfigA2A.Info.pipe(optional).annotate({
+    description: "Remote Agent2Agent (A2A) agents. Experimental: needs experimental.a2a",
   }),
   compaction: ConfigCompaction.Info.pipe(optional).annotate({
     description: "Conversation compaction behavior",

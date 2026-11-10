@@ -1,3 +1,4 @@
+import { A2AEndpoints } from "./a2a.js"
 import { ArtifactEndpoints } from "./artifact.js"
 import { BlobGetEndpoint } from "./blob.js"
 import { AutomationEndpoints } from "./automation.js"
@@ -12,4 +13,5 @@ export const ExperimentalGroup = PersistentPtyGroup.add(
   ...AutomationEndpoints,
   ...ArtifactEndpoints,
   ...JobEndpoints,
+  ...A2AEndpoints,
 )

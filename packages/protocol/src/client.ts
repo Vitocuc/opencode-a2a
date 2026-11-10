@@ -105,13 +105,16 @@ export const deprecatedClientPaths = new Set([
   "voice.session",
 ])
 
+// A2A JSON-RPC callers use an A2A client; the generated clients only read the Agent Card.
 export const promiseOmitEndpoints = new Set([
+  "a2a.rpc",
   "pty.connect",
   "persistentPty.connect",
   "mcp.client",
   "generate.textLegacy",
 ])
 export const effectOmitEndpoints = new Set([
+  "a2a.rpc",
   "fs.read",
   "fs.write",
   "media.get",

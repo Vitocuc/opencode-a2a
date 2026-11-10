@@ -35,7 +35,7 @@ export const makeMediaGet = Effect.gen(function* () {
     })
 })
 
-function matchesIfNoneMatch(ifNoneMatch: string | undefined, etag: string) {
+export function matchesIfNoneMatch(ifNoneMatch: string | undefined, etag: string) {
   if (ifNoneMatch === undefined) return false
   return ifNoneMatch.split(",").some((tag) => {
     const trimmed = tag.trim()

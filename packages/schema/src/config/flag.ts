@@ -13,6 +13,7 @@ export const registry = {
   automations:
     "Run a prompt or Code Mode action on a timer, or on a connected MCP server's push event when mcp_events is enabled.",
   artifacts: "Enable experimental artifacts backed by pluggable providers.",
+  a2a: "Serve OpenCode as an Agent2Agent (A2A) protocol agent under /api/experimental/a2a, and give agents the a2a tool for the remote A2A agents listed under `a2a.agents`.",
   video_generate: "Enable the experimental video generation API.",
   console_watches:
     "Watch Slack threads, GitHub pull requests, issues, commits and Actions runs, and the workspace's MCP servers' events through OpenCode Console, and wake sessions when they change.",
