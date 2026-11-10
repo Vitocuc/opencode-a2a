@@ -17,6 +17,7 @@ import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { Socket } from "effect/socket"
 import { Api } from "../api"
 import { CorsConfig, isAllowedRequestOrigin } from "../cors"
+import { makeA2A } from "./a2a"
 import { makeArtifact } from "./artifact"
 import { makeJob } from "./job"
 import { makeMediaGet } from "./media"
@@ -32,6 +33,7 @@ export const PersistentPtyHandler = HttpApiBuilder.group(Api, "server.experiment
     const job = yield* makeJob
     const mediaGet = yield* makeMediaGet
     const schedule = yield* makeSchedule
+    const a2a = yield* makeA2A
 
     return handlers
       .handleRaw("media.get", (ctx) => mediaGet(ctx.params.hash, ctx.request))
@@ -43,6 +45,8 @@ export const PersistentPtyHandler = HttpApiBuilder.group(Api, "server.experiment
       .handle("artifacts.update", (ctx) => artifact.update(ctx.params.artifactID, ctx.query, ctx.payload, ctx.request))
       .handle("artifacts.delete", (ctx) => artifact.remove(ctx.params.artifactID, ctx.query, ctx.request))
       .handleRaw("artifacts.view", (ctx) => artifact.view(ctx.params.artifactID, ctx.query, ctx.request))
+      .handleRaw("a2a.card", (ctx) => a2a.card(ctx.request))
+      .handleRaw("a2a.rpc", (ctx) => a2a.rpc(ctx.request))
       .handle("schedule.create", (ctx) => schedule.create(ctx.payload))
       .handle("schedule.list", (ctx) => schedule.list(ctx.query.sessionID))
       .handle("schedule.get", (ctx) => schedule.get(ctx.params.scheduleID))

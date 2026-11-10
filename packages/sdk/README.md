@@ -75,6 +75,32 @@ Use a persistent `database.path` to recover Sessions after restart; the default 
 
 Promise plugin resources should be acquired in `setup` and released by its cleanup function. Effect configuration can acquire resources in its supplied instance Scope and require services provided to the SDK entrypoint (see the Effect section).
 
+## Agent2Agent (A2A)
+
+Experimental, behind the `a2a` flag (`experimental.a2a: true` in config or `OPENCODE_FLAGS=a2a`). It works in both directions and speaks A2A 1.0 and 0.3 over JSON-RPC.
+
+As an A2A agent, a Location serves its Agent Card at `GET /api/experimental/a2a/card?location[directory]=<dir>` (the 1.0 card when the request sends `A2A-Version: 1.x`, otherwise 0.3) and JSON-RPC at `POST /api/experimental/a2a`. A `contextId` is a Session and a task is one prompt in it. `message/send` / `SendMessage` blocks until the turn ends unless `blocking: false` or `returnImmediately: true`; `message/stream` / `SendStreamingMessage` streams the task, each finished stretch of text as an artifact chunk, and the final status. `tasks/get`, `tasks/cancel` and `tasks/resubscribe` (and their 1.0 names) work on any task. Push notifications are not supported. Set `metadata.agent` on a message to start its Session with one of the card's skills (an OpenCode agent). Permission prompts in A2A Sessions are answered from the OpenCode UI like any other Session. With the SDK, `opencode.experimental.a2a.card()` reads the card.
+
+To call remote A2A agents, list them in config; agents then get an `a2a` tool that sends a task and waits for its answer:
+
+```json
+{
+  "experimental": { "a2a": true },
+  "a2a": {
+    "agents": {
+      "research": {
+        "url": "https://agents.example.com",
+        "description": "Researches libraries and writes summaries",
+        "headers": { "Authorization": "Bearer {env:RESEARCH_TOKEN}" },
+        "timeout": 900
+      }
+    }
+  }
+}
+```
+
+`url` is the agent's base URL (its card is read from `/.well-known/agent-card.json`) or the card URL itself.
+
 ## Workerd
 
 Use the Workerd entrypoint inside a Cloudflare Durable Object. Hold one host for the lifetime of the object instance rather than creating one per request.

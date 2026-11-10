@@ -271,6 +271,8 @@ import type {
   ExperimentalArtifactsViewOutput,
   ExperimentalJobListInput,
   ExperimentalJobListOutput,
+  ExperimentalA2aCardInput,
+  ExperimentalA2aCardOutput,
   ShellListInput,
   ShellListOutput,
   ShellCreateInput,
@@ -1701,6 +1703,21 @@ export function make(options: ClientOptions) {
             },
             requestOptions,
           ).then((value) => value.data),
+      },
+      a2a: {
+        card: (input?: ExperimentalA2aCardInput, requestOptions?: RequestOptions) =>
+          request<ExperimentalA2aCardOutput>(
+            {
+              method: "GET",
+              path: `/api/experimental/a2a/card`,
+              query: { location: input?.["location"] },
+              headers: { "a2a-version": input?.["a2a-version"] },
+              successStatus: 200,
+              declaredStatuses: [400, 401, 403, 404],
+              empty: false,
+            },
+            requestOptions,
+          ),
       },
       migration: {
         v1: {
