@@ -269,6 +269,8 @@ import type {
   ExperimentalArtifactsDeleteOutput,
   ExperimentalJobListInput,
   ExperimentalJobListOutput,
+  ExperimentalA2aCardInput,
+  ExperimentalA2aCardOutput,
   ShellListInput,
   ShellListOutput,
   ShellCreateInput,
@@ -1715,6 +1717,14 @@ const EndpointExperimentalJobList = (raw: RawClient["server.experimental"]) => (
     ),
   )
 
+const EndpointExperimentalA2aCard = (raw: RawClient["server.experimental"]) => (input?: ExperimentalA2aCardInput) =>
+  preserveEffect<ExperimentalA2aCardOutput>()(
+    raw["a2a.card"]({
+      query: { location: input?.["location"] },
+      headers: { "a2a-version": input?.["a2a-version"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const adaptGroupExperimental = (raw: RawClient["server.experimental"]) => ({
   persistentPty: {
     read: EndpointExperimentalPersistentPtyRead(raw),
@@ -1745,6 +1755,7 @@ const adaptGroupExperimental = (raw: RawClient["server.experimental"]) => ({
     delete: EndpointExperimentalArtifactsDelete(raw),
   },
   job: { list: EndpointExperimentalJobList(raw) },
+  a2a: { card: EndpointExperimentalA2aCard(raw) },
 })
 
 const EndpointShellList = (raw: RawClient["server.shell"]) => (input?: ShellListInput) =>

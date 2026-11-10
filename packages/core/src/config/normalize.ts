@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from "node:util"
 import { isRecord } from "@opencode/util/record"
 import { Option, Schema } from "effect"
 import { Info } from "@opencode/schema/config"
+import { ConfigA2A } from "@opencode/schema/config/a2a"
 import { ConfigAgent } from "@opencode/schema/config/agent"
 import { ConfigCommand } from "@opencode/schema/config/command"
 import { ConfigCompaction } from "@opencode/schema/config/compaction"
@@ -191,6 +192,7 @@ export function normalize(input: unknown): Result {
 
   normalizeSkills(input, encoded, diagnostics)
   normalizeMcp(input, encoded, diagnostics)
+  normalizeA2A(input, encoded, diagnostics)
   normalizeCompaction(input, encoded, diagnostics)
   normalizePolicies(input, encoded, diagnostics)
   normalizeExperimental(input, encoded, diagnostics)
@@ -245,6 +247,15 @@ function normalizeSkills(input: Record<string, unknown>, encoded: Record<string,
     ...decodeList(input.skills.paths, Schema.String, ["skills", "paths"], diagnostics, decodeEncoded),
     ...decodeList(input.skills.urls, Schema.String, ["skills", "urls"], diagnostics, decodeEncoded),
   ]
+}
+
+// Each agent decodes on its own, so one malformed entry does not drop the others.
+function normalizeA2A(input: Record<string, unknown>, encoded: Record<string, unknown>, diagnostics: Diagnostic[]) {
+  if (!own(input, "a2a")) return
+  if (!isRecord(input.a2a)) return invalid(["a2a"], diagnostics)
+  encoded.a2a = own(input.a2a, "agents")
+    ? { agents: decodeMap(input.a2a.agents, ConfigA2A.Agent, ["a2a", "agents"], diagnostics, decodeEncoded) }
+    : {}
 }
 
 function normalizeMcp(input: Record<string, unknown>, encoded: Record<string, unknown>, diagnostics: Diagnostic[]) {

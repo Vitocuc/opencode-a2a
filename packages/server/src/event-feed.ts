@@ -4,6 +4,7 @@ import { Bus } from "@opencode/core/bus"
 import { Event } from "@opencode/schema/event"
 import { isOpenCodeEvent, type OpenCodeEvent } from "@opencode/protocol/groups/event"
 import { Cause, Context, Effect, Layer, Queue, Schema, Scope, Stream } from "effect"
+import { HttpServerResponse } from "effect/http"
 
 export const SubscriberCapacity = 4_096
 
@@ -28,6 +29,19 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/se
 
 export function frame(event: OpenCodeEvent) {
   return `data: ${JSON.stringify(event)}\n\n`
+}
+
+/** A server-sent events response for pre-framed output, with a heartbeat comment every 15 seconds until it ends. */
+export function response<E>(frames: Stream.Stream<string, E>) {
+  const heartbeat = Stream.tick("15 seconds").pipe(Stream.map(() => ": heartbeat\n\n"))
+  return HttpServerResponse.stream(frames.pipe(Stream.merge(heartbeat, { haltStrategy: "left" }), Stream.encodeText), {
+    contentType: "text/event-stream",
+    headers: {
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+      "X-Content-Type-Options": "nosniff",
+    },
+  })
 }
 
 export const make = Effect.fn("EventFeed.make")(function* (

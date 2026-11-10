@@ -158,6 +158,14 @@ describe("ConfigNormalize", () => {
     ])
   })
 
+  test("keeps valid A2A agents when another entry is malformed", () => {
+    const result = normalized({
+      a2a: { agents: { docs: { url: "https://agents.example/docs", timeout: 30 }, broken: { url: 42 } } },
+    })
+    expect(result.encoded.a2a).toEqual({ agents: { docs: { url: "https://agents.example/docs", timeout: 30 } } })
+    expect(result.diagnostics.map((item) => item.path)).toEqual([["a2a", "agents", "broken"]])
+  })
+
   test("does not report canonical-equal duplicates as conflicts", () => {
     const result = normalized({
       snapshot: false,

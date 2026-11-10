@@ -2513,6 +2513,65 @@ export type ExperimentalJobListOperation<E = never> = (
   input?: ExperimentalJobListInput,
 ) => Effect.Effect<ExperimentalJobListOutput, E>
 
+export type ExperimentalA2aCardInput = {
+  readonly location?: { readonly directory?: string | undefined } | undefined
+  readonly "a2a-version"?: string | undefined
+}
+export type ExperimentalA2aCardOutput =
+  | {
+      readonly name: string
+      readonly description: string
+      readonly version: string
+      readonly defaultInputModes: ReadonlyArray<string>
+      readonly defaultOutputModes: ReadonlyArray<string>
+      readonly skills: ReadonlyArray<{
+        readonly id: string
+        readonly name: string
+        readonly description: string
+        readonly tags: ReadonlyArray<string>
+      }>
+      readonly supportedInterfaces: ReadonlyArray<{
+        readonly url: string
+        readonly protocolBinding: string
+        readonly protocolVersion: string
+      }>
+      readonly capabilities: { readonly streaming: boolean; readonly pushNotifications: boolean }
+      readonly securitySchemes?:
+        | { readonly [x: string]: { readonly httpAuthSecurityScheme: { readonly scheme: string } } }
+        | undefined
+      readonly securityRequirements?:
+        | ReadonlyArray<{ readonly schemes: { readonly [x: string]: { readonly list: ReadonlyArray<string> } } }>
+        | undefined
+    }
+  | {
+      readonly name: string
+      readonly description: string
+      readonly version: string
+      readonly defaultInputModes: ReadonlyArray<string>
+      readonly defaultOutputModes: ReadonlyArray<string>
+      readonly skills: ReadonlyArray<{
+        readonly id: string
+        readonly name: string
+        readonly description: string
+        readonly tags: ReadonlyArray<string>
+      }>
+      readonly protocolVersion: string
+      readonly url: string
+      readonly preferredTransport: "JSONRPC"
+      readonly capabilities: {
+        readonly streaming: boolean
+        readonly pushNotifications: boolean
+        readonly stateTransitionHistory: boolean
+      }
+      readonly securitySchemes?:
+        | { readonly [x: string]: { readonly type: "http"; readonly scheme: string } }
+        | undefined
+      readonly security?: ReadonlyArray<{ readonly [x: string]: ReadonlyArray<string> }> | undefined
+    }
+export type ExperimentalA2aCardOperation<E = never> = (
+  input?: ExperimentalA2aCardInput,
+) => Effect.Effect<ExperimentalA2aCardOutput, E>
+
 export interface ExperimentalApi<E = never> {
   readonly persistentPty: {
     readonly read: ExperimentalPersistentPtyReadOperation<E>
@@ -2543,6 +2602,7 @@ export interface ExperimentalApi<E = never> {
     readonly delete: ExperimentalArtifactsDeleteOperation<E>
   }
   readonly job: { readonly list: ExperimentalJobListOperation<E> }
+  readonly a2a: { readonly card: ExperimentalA2aCardOperation<E> }
 }
 
 export type ShellListInput = { readonly location?: { readonly directory?: string | undefined } | undefined }

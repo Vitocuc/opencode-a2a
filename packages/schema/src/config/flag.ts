@@ -16,6 +16,7 @@ export const registry = {
   schedules: "Enable experimental scheduled tasks that wake a session with a prompt.",
   artifacts: "Enable experimental artifacts backed by pluggable providers.",
   codemode_vm: "Run the Code Mode execute tool on the experimental bytecode VM instead of the legacy interpreter.",
+  a2a: "Serve OpenCode as an Agent2Agent (A2A) protocol agent under /api/experimental/a2a, and give agents the a2a tool for the remote A2A agents listed under `a2a.agents`.",
   console_watches:
     "Watch Slack threads, GitHub pull requests, issues, commits and Actions runs, and the workspace's MCP servers' events through OpenCode Console, and wake sessions when they change.",
 } as const satisfies Record<string, string>
