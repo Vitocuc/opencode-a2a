@@ -249,7 +249,8 @@ describe("PluginSupervisor", () => {
         )
         const status = (id: string) => inventory.find((plugin) => plugin.id === id)?.state.status
         expect(status("opencode.config.policy")).toBe("active")
-        expect(status("opencode.provider.opencode")).toBe("active")
+        // Podarcis registers no Console provider; the Gepeto lock is guarded in its place.
+        expect(status("podarcis.provider.lock")).toBe("active")
         // Removals still apply to everything else, including instance and builtin plugins.
         expect(status("opencode.config.agent")).toBeUndefined()
         expect(inventory.some((plugin) => plugin.id === id)).toBe(targets[0] !== "*")

@@ -1,3 +1,57 @@
+# Podarcis
+
+Podarcis is a build of [OpenCode](https://github.com/anomalyco/opencode) that connects only to the models served by
+[Gepeto](https://gepeto.bsc.es/). Every other provider is disabled, and configuration or plugins cannot add one back.
+
+### Get a Gepeto API key
+
+Sign in to [gepeto.bsc.es](https://gepeto.bsc.es/), open **Settings → Account → API keys** and create a key. It starts
+with `sk-`.
+
+### Build and install
+
+You need [git](https://git-scm.com/) and [bun](https://bun.sh/). The build uses the bun version pinned in
+`package.json`; if yours differs, `install-podarcis` fetches that version through `bunx` and leaves your bun untouched.
+
+```bash
+git clone -b podarcis https://github.com/Vitocuc/opencode-a2a.git podarcis
+cd podarcis
+./install-podarcis
+```
+
+The script installs dependencies, compiles a single `podarcis` binary for your platform, copies it to
+`~/.podarcis/bin` and adds that directory to your `PATH`. Set `PODARCIS_INSTALL_DIR` to install somewhere else, or
+pass `--no-modify-path` to leave your shell config alone.
+
+To build without installing, run `bun install`, then `bun run build --single` from `packages/cli`. The binary is
+written to `packages/cli/dist/<platform>/bin/podarcis`.
+
+### Run
+
+```bash
+export GEPETO_API_KEY=sk-...
+podarcis
+```
+
+Instead of the environment variable you can save the key once with `podarcis auth login gepeto`. `podarcis models` lists the
+Gepeto models your key can use.
+
+If OpenCode is also installed on the same machine, start Podarcis with `--standalone` so it runs its own server
+instead of attaching to OpenCode's background server.
+
+### Update
+
+Podarcis does not self-update. Pull the latest `podarcis` branch and run `./install-podarcis` again:
+
+```bash
+git pull
+./install-podarcis
+```
+
+---
+
+_The rest of this file is the upstream OpenCode README._
+
 <p align="center">
   <a href="https://opencode.ai">
     <picture>

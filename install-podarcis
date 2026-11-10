@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# Builds Podarcis from this checkout and installs it as `podarcis`.
+#
+# Unlike ./install (which downloads upstream OpenCode releases), this compiles the current branch, so run it from a
+# checkout of the podarcis branch. Override the destination with PODARCIS_INSTALL_DIR.
+set -euo pipefail
+
+usage() {
+    cat <<EOF
+Build Podarcis from source and install it.
+
+Usage: ./install-podarcis [options]
+
+Options:
+    -h, --help          Display this help message
+    --no-modify-path    Don't add the install directory to \$PATH in your shell config
+
+Environment:
+    PODARCIS_INSTALL_DIR   Where to install the binary (default: \$HOME/.podarcis/bin)
+EOF
+}
+
+modify_path=true
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h | --help) usage; exit 0 ;;
+        --no-modify-path) modify_path=false; shift ;;
+        *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
+    esac
+done
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+install_dir="${PODARCIS_INSTALL_DIR:-$HOME/.podarcis/bin}"
+
+# The build requires the bun version pinned in package.json. If the bun on PATH differs, run the pinned one through
+# bunx without replacing the system bun. The build spawns `bun` itself, so the pinned binary goes first on PATH.
+required="$(sed -n 's/.*"packageManager": "bun@\([^"]*\)".*/\1/p' "$root/package.json")"
+if ! command -v bun >/dev/null 2>&1; then
+    echo "bun is required. Install it from https://bun.sh, then run this script again." >&2
+    exit 1
+fi
+if [[ "$(bun --version)" != "$required" ]]; then
+    echo "Using bun $required for the build (found $(bun --version) on PATH)."
+    pinned="$(bunx "bun@$required" -e 'console.log(process.execPath)')"
+    # The npm package names its binary bun.exe on every platform, so link it as `bun`.
+    shim="$(mktemp -d)"
+    trap 'rm -rf "$shim"' EXIT
+    ln -s "$pinned" "$shim/bun"
+    export PATH="$shim:$PATH"
+    if [[ "$(bun --version)" != "$required" ]]; then
+        echo "Could not run bun $required. Install it with: curl -fsSL https://bun.sh/install | bash -s bun-v$required" >&2
+        exit 1
+    fi
+fi
+
+echo "Installing dependencies..."
+(cd "$root" && bun install)
+
+echo "Building Podarcis..."
+(cd "$root/packages/cli" && bun run script/build.ts --single)
+
+binary="$(find "$root/packages/cli/dist" -path '*/bin/podarcis' -o -path '*/bin/podarcis.exe' | head -n 1)"
+if [[ -z "$binary" ]]; then
+    echo "Build finished but no podarcis binary was found in packages/cli/dist." >&2
+    exit 1
+fi
+
+mkdir -p "$install_dir"
+cp "$binary" "$install_dir/"
+chmod 755 "$install_dir/$(basename "$binary")"
+echo "Installed $("$install_dir/podarcis" --version) to $install_dir"
+
+if [[ ":$PATH:" == *":$install_dir:"* ]]; then
+    exit 0
+fi
+if [[ "$modify_path" != true ]]; then
+    echo "Add it to your PATH:  export PATH=$install_dir:\$PATH"
+    exit 0
+fi
+case "$(basename "${SHELL:-}")" in
+    fish) config="$HOME/.config/fish/config.fish"; line="fish_add_path $install_dir" ;;
+    zsh) config="${ZDOTDIR:-$HOME}/.zshrc"; line="export PATH=$install_dir:\$PATH" ;;
+    bash) config="$HOME/.bashrc"; line="export PATH=$install_dir:\$PATH" ;;
+    *) config=""; line="export PATH=$install_dir:\$PATH" ;;
+esac
+if [[ -z "$config" ]]; then
+    echo "Add it to your PATH:  $line"
+    exit 0
+fi
+mkdir -p "$(dirname "$config")"
+if ! grep -qsF "$line" "$config"; then
+    printf '\n# podarcis\n%s\n' "$line" >>"$config"
+    echo "Added $install_dir to PATH in $config. Open a new terminal (or run: exec \$SHELL) to use it."
+fi

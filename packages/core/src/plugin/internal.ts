@@ -103,11 +103,11 @@ import { CommandPlugin } from "./command.js"
 import { IdentityPlugin } from "./identity.js"
 import { PlanPlugin } from "./plan.js"
 import { GoalPlugin } from "./goal.js"
-import { ModelsDevPlugin } from "./models-dev.js"
 import { McpCodeModeDefaultsPlugin } from "./mcp-codemode-defaults.js"
 import { ProviderPlugins } from "./provider.js"
 import { DynamicProviderPlugin } from "./provider/dynamic.js"
 import { OpencodePlugin } from "./provider/opencode.js"
+import { GepetoLockPlugin } from "./provider/gepeto.js"
 import { WebSearchPlugins } from "./websearch/index.js"
 import { SkillPlugin } from "./skill.js"
 import { VcsHgPlugin } from "./vcs/hg.js"
@@ -254,7 +254,7 @@ const pre = [
   GoalPlugin.Plugin,
   SkillPlugin.Plugin,
   VcsHgPlugin.Plugin,
-  ModelsDevPlugin,
+  // Podarcis registers no models.dev catalog providers: Gepeto is the only provider.
   ...ProviderPlugins,
   ...WebSearchPlugins,
   PatchTool.Plugin,
@@ -302,11 +302,17 @@ const post = [
   DynamicProviderPlugin,
   ConfigWebSearchPlugin.Plugin,
   ConfigPolicyPlugin.Plugin,
+  // Last, so neither config nor external plugins can add a provider other than Gepeto.
+  GepetoLockPlugin,
 ] as const satisfies readonly InternalPlugin[]
 
 // Repository config must not switch off policy enforcement or the Console connection that delivers
 // organization statements, so plugin remove operations skip these IDs.
-export const guarded: ReadonlySet<string> = new Set([OpencodePlugin.id, ConfigPolicyPlugin.Plugin.id])
+export const guarded: ReadonlySet<string> = new Set([
+  OpencodePlugin.id,
+  ConfigPolicyPlugin.Plugin.id,
+  GepetoLockPlugin.id,
+])
 
 export const list = Effect.fn("PluginInternal.list")(function* () {
   // Capture only services; activation supplies the child Scope and batching context.
