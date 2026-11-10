@@ -18,7 +18,8 @@ export type RunResult = { readonly type: "available" | "installed"; readonly ver
 export type CheckResult = RunResult | { readonly type: "unavailable"; readonly message: string }
 
 // Podarcis is built from its own branch; upstream OpenCode releases would replace it with stock OpenCode.
-const selfUpdate = false
+export const selfUpdate = false
+export const selfUpdateMessage = "Podarcis does not self-update. Pull the podarcis branch and run ./install-podarcis again."
 
 export class UpgradeError extends Error {
   readonly title: string
@@ -426,8 +427,6 @@ const make = Effect.gen(function* () {
   }
 
   const upgrade = Effect.fnUntraced(function* (method: Method, input: string) {
-    if (!selfUpdate)
-      return yield* Effect.fail(new Error("Podarcis does not self-update. Rebuild it from the podarcis branch."))
     if (!parseReleaseVersion(input)) return yield* Effect.fail(new Error(`Invalid version: ${input}`))
     const version = input.trim().replace(/^v/, "")
     const packageName =
@@ -537,13 +536,10 @@ const make = Effect.gen(function* () {
   })
 
   const inspect = Effect.fnUntraced(function* () {
-    if (
-      !selfUpdate ||
-      OPENCODE_LOCAL ||
-      ["1", "true"].includes(process.env.OPENCODE_DISABLE_AUTOUPDATE?.toLowerCase() ?? "")
-    ) {
+    if (!selfUpdate) return undefined
+    if (OPENCODE_LOCAL || ["1", "true"].includes(process.env.OPENCODE_DISABLE_AUTOUPDATE?.toLowerCase() ?? "")) {
       yield* Effect.logInfo("update check skipped", {
-        reason: !selfUpdate ? "podarcis" : OPENCODE_LOCAL ? "local-install" : "disabled",
+        reason: OPENCODE_LOCAL ? "local-install" : "disabled",
         version: OPENCODE_VERSION,
         channel: OPENCODE_CHANNEL,
       })
@@ -593,6 +589,7 @@ const make = Effect.gen(function* () {
   })
 
   const check = Effect.fn("cli.updater.check")(function* () {
+    if (!selfUpdate) return { type: "unavailable" as const, message: selfUpdateMessage }
     if (OPENCODE_LOCAL)
       return {
         type: "unavailable" as const,

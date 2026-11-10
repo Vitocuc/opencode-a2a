@@ -32,32 +32,39 @@ done
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 install_dir="${PODARCIS_INSTALL_DIR:-$HOME/.podarcis/bin}"
 
-# The build requires the bun version pinned in package.json. If the bun on PATH differs, run the pinned one through
-# bunx without replacing the system bun. The build spawns `bun` itself, so the pinned binary goes first on PATH.
-required="$(sed -n 's/.*"packageManager": "bun@\([^"]*\)".*/\1/p' "$root/package.json")"
+# The build requires a bun compatible with the version pinned in package.json (the same `^` range
+# packages/script checks). If the bun on PATH is not, run the pinned one through bunx without replacing the system
+# bun. The build spawns `bun` itself, so the pinned binary goes first on PATH.
 if ! command -v bun >/dev/null 2>&1; then
     echo "bun is required. Install it from https://bun.sh, then run this script again." >&2
     exit 1
 fi
-if [[ "$(bun --version)" != "$required" ]]; then
+required="$(bun -e 'console.log((await Bun.file(process.argv[1]).json()).packageManager.split("@")[1])' "$root/package.json")"
+compatible() { bun -e 'process.exit(Bun.semver.satisfies(Bun.version, "^" + process.argv[1]) ? 0 : 1)' "$required"; }
+if ! compatible; then
     echo "Using bun $required for the build (found $(bun --version) on PATH)."
-    pinned="$(bunx "bun@$required" -e 'console.log(process.execPath)')"
     # The npm package names its binary bun.exe on every platform, so link it as `bun`.
     shim="$(mktemp -d)"
     trap 'rm -rf "$shim"' EXIT
-    ln -s "$pinned" "$shim/bun"
+    ln -s "$(bunx "bun@$required" -e 'console.log(process.execPath)')" "$shim/bun"
     export PATH="$shim:$PATH"
-    if [[ "$(bun --version)" != "$required" ]]; then
+    if ! compatible; then
         echo "Could not run bun $required. Install it with: curl -fsSL https://bun.sh/install | bash -s bun-v$required" >&2
         exit 1
     fi
 fi
 
+# The channel names the version and keeps Podarcis's background service and database apart from an installed
+# OpenCode; pin it so it does not depend on the checkout's branch name.
+export OPENCODE_CHANNEL="${OPENCODE_CHANNEL:-podarcis}"
+
 echo "Installing dependencies..."
-(cd "$root" && bun install)
+# Podarcis builds only the CLI, so skip the Electron download the desktop packages would trigger.
+(cd "$root" && ELECTRON_SKIP_BINARY_DOWNLOAD=1 bun install)
 
 echo "Building Podarcis..."
-(cd "$root/packages/cli" && bun run script/build.ts --single)
+# The install above already fetched this platform's native packages; --skip-install avoids fetching every platform's.
+(cd "$root/packages/cli" && bun run build --single --skip-install)
 
 binary="$(find "$root/packages/cli/dist" -path '*/bin/podarcis' -o -path '*/bin/podarcis.exe' | head -n 1)"
 if [[ -z "$binary" ]]; then
@@ -66,24 +73,20 @@ if [[ -z "$binary" ]]; then
 fi
 
 mkdir -p "$install_dir"
-cp "$binary" "$install_dir/"
-chmod 755 "$install_dir/$(basename "$binary")"
+install -m 755 "$binary" "$install_dir/"
 echo "Installed $("$install_dir/podarcis" --version) to $install_dir"
 
 if [[ ":$PATH:" == *":$install_dir:"* ]]; then
     exit 0
 fi
-if [[ "$modify_path" != true ]]; then
-    echo "Add it to your PATH:  export PATH=$install_dir:\$PATH"
-    exit 0
-fi
+line="export PATH=$install_dir:\$PATH"
 case "$(basename "${SHELL:-}")" in
     fish) config="$HOME/.config/fish/config.fish"; line="fish_add_path $install_dir" ;;
-    zsh) config="${ZDOTDIR:-$HOME}/.zshrc"; line="export PATH=$install_dir:\$PATH" ;;
-    bash) config="$HOME/.bashrc"; line="export PATH=$install_dir:\$PATH" ;;
-    *) config=""; line="export PATH=$install_dir:\$PATH" ;;
+    zsh) config="${ZDOTDIR:-$HOME}/.zshrc" ;;
+    bash) config="$HOME/.bashrc" ;;
+    *) config="" ;;
 esac
-if [[ -z "$config" ]]; then
+if [[ "$modify_path" != true || -z "$config" ]]; then
     echo "Add it to your PATH:  $line"
     exit 0
 fi

@@ -106,7 +106,6 @@ import { GoalPlugin } from "./goal.js"
 import { McpCodeModeDefaultsPlugin } from "./mcp-codemode-defaults.js"
 import { ProviderPlugins } from "./provider.js"
 import { DynamicProviderPlugin } from "./provider/dynamic.js"
-import { OpencodePlugin } from "./provider/opencode.js"
 import { GepetoLockPlugin } from "./provider/gepeto.js"
 import { WebSearchPlugins } from "./websearch/index.js"
 import { SkillPlugin } from "./skill.js"
@@ -306,13 +305,9 @@ const post = [
   GepetoLockPlugin,
 ] as const satisfies readonly InternalPlugin[]
 
-// Repository config must not switch off policy enforcement or the Console connection that delivers
-// organization statements, so plugin remove operations skip these IDs.
-export const guarded: ReadonlySet<string> = new Set([
-  OpencodePlugin.id,
-  ConfigPolicyPlugin.Plugin.id,
-  GepetoLockPlugin.id,
-])
+// Repository config must not switch off policy enforcement or the Gepeto lock, so plugin remove operations skip
+// these IDs.
+export const guarded: ReadonlySet<string> = new Set([ConfigPolicyPlugin.Plugin.id, GepetoLockPlugin.id])
 
 export const list = Effect.fn("PluginInternal.list")(function* () {
   // Capture only services; activation supplies the child Scope and batching context.

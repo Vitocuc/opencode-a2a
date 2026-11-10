@@ -12,6 +12,7 @@ export default Runtime.handler(
   Effect.fn("cli.upgrade")(
     function* (input) {
       intro("Upgrade")
+      if (!Updater.selfUpdate) return yield* Effect.fail(new Error(Updater.selfUpdateMessage))
       const updater = yield* Updater.Service
       const method = Option.getOrUndefined(input.method) ?? (yield* updater.method())
       if (!method)
