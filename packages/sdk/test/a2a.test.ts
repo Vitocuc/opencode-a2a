@@ -312,3 +312,92 @@ it.live(
     }),
   20_000,
 )
+
+// A real model is still answering when the stream starts, so the stream must follow live events to the end.
+it.live(
+  "streams a task that is still running when the stream starts",
+  () =>
+    Effect.gen(function* () {
+      const dir = (yield* tmpdirScoped("opencode-a2a-stream-")).path
+      const project = path.join(dir, "project")
+      yield* Effect.promise(async () => {
+        await fs.mkdir(project, { recursive: true })
+        await fs.writeFile(path.join(project, "opencode.json"), JSON.stringify({ experimental: { a2a: true } }))
+      })
+      const llm = yield* TestLLM.Test.pipe(
+        Effect.provide(TestLLM.testLayer({ fallback: TestLLM.text("Answered late", "answer") })),
+      )
+      const handler = yield* ServerFetch.make(
+        {
+          app: { version: "test" },
+          database: { path: path.join(dir, "opencode.db") },
+          config: {
+            directory: path.join(dir, "global"),
+            project: true,
+            claude: false,
+            content: JSON.stringify(provider),
+          },
+          models: { fetch: false },
+          fs: { filewatcher: false },
+        },
+        { overrides: [llmClient.replace(Layer.succeed(LLMClient.Service, llm))] },
+      )
+      const query = `?location[directory]=${encodeURIComponent(project)}`
+      yield* Effect.promise(() => handler(new Request(`${base}/api/model${query}`)).then((r) => r.json())).pipe(
+        Effect.repeat({
+          until: (body: { data: { id: string }[] }) => body.data.some((model) => model.id === "fictional-chat"),
+          schedule: Schedule.spaced("20 millis"),
+        }),
+        Effect.timeoutOrElse({ duration: "5 seconds", orElse: () => Effect.die(new Error("model never loaded")) }),
+      )
+      // The model holds its answer until the stream has sent its first frame.
+      const gate = yield* llm.gate()
+      const response = yield* Effect.promise(() =>
+        handler(
+          new Request(`${base}/api/experimental/a2a${query}`, {
+            method: "POST",
+            headers: { "content-type": "application/json", "a2a-version": "1.0" },
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              id: 1,
+              method: "SendStreamingMessage",
+              params: { message: { messageId: "late", role: "ROLE_USER", parts: [{ text: "Answer late" }] } },
+            }),
+          }),
+        ),
+      )
+      const reader = response.body!.getReader()
+      const decoder = new TextDecoder()
+      const frames: unknown[] = []
+      const state = { buffer: "" }
+      const readFrames = (until: (frames: unknown[]) => boolean) =>
+        Effect.promise(async () => {
+          while (!until(frames)) {
+            const chunk = await reader.read()
+            if (chunk.done) return
+            state.buffer += decoder.decode(chunk.value, { stream: true })
+            const parts = state.buffer.split("\n\n")
+            state.buffer = parts.pop() ?? ""
+            frames.push(
+              ...parts.filter((part) => part.startsWith("data: ")).map((part) => JSON.parse(part.slice(6)).result),
+            )
+          }
+        })
+      yield* readFrames((items) => items.length > 0)
+      expect(frames[0]).toMatchObject({ task: { status: { state: "TASK_STATE_WORKING" } } })
+      yield* gate.started
+      yield* gate.release
+      yield* readFrames(() => false).pipe(
+        Effect.timeoutOrElse({ duration: "10 seconds", orElse: () => Effect.die(new Error("stream never finished")) }),
+      )
+      expect(frames).toContainEqual(
+        expect.objectContaining({
+          artifactUpdate: expect.objectContaining({
+            artifact: expect.objectContaining({ parts: [{ text: "Answered late" }] }),
+          }),
+        }),
+      )
+      expect(frames.at(-1)).toMatchObject({ statusUpdate: { status: { state: "TASK_STATE_COMPLETED" } } })
+    }),
+  20_000,
+)
