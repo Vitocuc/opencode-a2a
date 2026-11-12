@@ -1,5 +1,6 @@
 import { A2ACodec } from "@opencode/core/a2a/codec"
 import { Agent } from "@opencode/core/agent"
+import { Bus } from "@opencode/core/bus"
 import { Flag } from "@opencode/core/flag"
 import { Location } from "@opencode/core/location"
 import { LocationServiceMap } from "@opencode/core/location-service-map"
@@ -7,9 +8,10 @@ import { Session } from "@opencode/core/session"
 import { ForbiddenError } from "@opencode/protocol/errors"
 import { A2A_PATH } from "@opencode/protocol/groups/a2a"
 import { A2A } from "@opencode/schema/a2a"
+import { SessionEvent } from "@opencode/schema/session-event"
 import { SessionMessage } from "@opencode/schema/session-message"
 import { Hash } from "@opencode/util/hash"
-import { Cause, Data, DateTime, Effect, Option, Schedule, Schema, Stream } from "effect"
+import { Cause, Data, DateTime, Effect, Option, Queue, Schedule, Schema, Stream } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/http"
 import path from "path"
 import { ServerAuth } from "../auth"
@@ -25,6 +27,7 @@ import { matchesIfNoneMatch } from "./media"
  */
 export const makeA2A = Effect.gen(function* () {
   const sessions = yield* Session.Service
+  const bus = yield* Bus.Service
   const locations = yield* LocationServiceMap.Service
   const auth = yield* ServerAuth.Config
 
@@ -358,9 +361,9 @@ export const makeA2A = Effect.gen(function* () {
   }
 
   /**
-   * The task, then each finished stretch of assistant text as an artifact chunk, then its terminal status. The
-   * Session log replays history before it follows live events; only events after its sync marker are new, and the
-   * marker itself rechecks the task in case it finished before the log was opened.
+   * The task, then each finished stretch of assistant text as an artifact chunk, then its terminal status. It follows
+   * live Bus events rather than the Session log, whose payloads are only kept when the server persists events. The
+   * subscription starts before the first frame, and a re-read right after it catches a task that finished earlier.
    */
   function follow(ref: TaskRef, initial: A2ACodec.Task): Stream.Stream<A2ACodec.Event, RpcError> {
     const id = taskID(ref)
@@ -375,7 +378,7 @@ export const makeA2A = Effect.gen(function* () {
       artifact: responseArtifact(id, text),
       ...flags,
     })
-    // A turn that finished before the log caught up streamed no chunks, so its answer goes out whole. Streamed
+    // A turn that finished before the stream started streamed no chunks, so its answer goes out whole. Streamed
     // chunks end with an empty one marked lastChunk, since a segment is only known to be last afterwards.
     const final = (task: A2ACodec.Task): A2ACodec.Event[] => {
       if (!A2ACodec.isTerminal(task.status.state)) return []
@@ -388,29 +391,47 @@ export const makeA2A = Effect.gen(function* () {
             : []
       return [...closing, { type: "status", taskId: id, contextId: ref.sessionID, status: task.status }]
     }
-    const live = sessions.log({ sessionID: ref.sessionID, follow: true }).pipe(
-      Stream.mapError(internal),
-      Stream.dropWhile((event) => event.type !== "log.synced"),
-      Stream.mapEffect((event): Effect.Effect<A2ACodec.Event[], RpcError> => {
-        if (event.type === "session.text.ended" && event.data.text.length > 0)
-          return Effect.succeed([artifact(event.data.text, { append: chunks.count++ > 0 })])
-        if (
-          event.type === "log.synced" ||
-          event.type === "session.execution.succeeded" ||
-          event.type === "session.execution.failed" ||
-          event.type === "session.execution.interrupted"
-        )
-          return read(ref).pipe(Effect.map(final))
-        return Effect.succeed([])
-      }),
-      Stream.flattenIterable,
-      Stream.takeUntil((event) => event.type === "status"),
-    )
     const first: A2ACodec.Event = {
       type: "task",
       task: { ...initial, status: { state: "working" }, artifacts: [] },
     }
-    return Stream.make(first).pipe(Stream.concat(live))
+    return Stream.unwrap(
+      Effect.gen(function* () {
+        const events = yield* Queue.unbounded<
+          | SessionEvent.Text.Ended
+          | SessionEvent.Execution.Succeeded
+          | SessionEvent.Execution.Failed
+          | SessionEvent.Execution.Interrupted
+        >()
+        yield* bus
+          .subscribe([
+            SessionEvent.Text.Ended,
+            SessionEvent.Execution.Succeeded,
+            SessionEvent.Execution.Failed,
+            SessionEvent.Execution.Interrupted,
+          ])
+          .pipe(
+            Stream.filter((event) => event.data.sessionID === ref.sessionID),
+            Stream.runForEach((event) => Queue.offer(events, event)),
+            Effect.forkScoped({ startImmediately: true }),
+          )
+        const live = Stream.fromQueue(events).pipe(
+          Stream.mapEffect((event): Effect.Effect<A2ACodec.Event[], RpcError> => {
+            if (event.type === "session.text.ended")
+              return Effect.succeed(
+                event.data.text.length > 0 ? [artifact(event.data.text, { append: chunks.count++ > 0 })] : [],
+              )
+            return read(ref).pipe(Effect.map(final))
+          }),
+        )
+        return Stream.make([first]).pipe(
+          Stream.concat(Stream.fromEffect(read(ref).pipe(Effect.map(final)))),
+          Stream.concat(live),
+          Stream.flattenIterable,
+          Stream.takeUntil((event) => event.type === "status"),
+        )
+      }),
+    )
   }
 })
 
