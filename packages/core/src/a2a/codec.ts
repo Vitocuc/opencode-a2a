@@ -95,6 +95,11 @@ export function card(version: Version, input: CardInput): A2A.Card {
       protocolVersion: "0.3.0",
       url: input.url,
       preferredTransport: "JSONRPC",
+      // 0.3 clients ignore this; a 1.x client that fetched the card without A2A-Version picks 1.0 from it.
+      supportedInterfaces: [
+        { url: input.url, protocolBinding: "JSONRPC", protocolVersion: "1.0" },
+        { url: input.url, protocolBinding: "JSONRPC", protocolVersion: "0.3" },
+      ],
       capabilities: { streaming: true, pushNotifications: false, stateTransitionHistory: false },
       ...(input.basicAuth
         ? { securitySchemes: { basic: { type: "http", scheme: "basic" } }, security: [{ basic: [] }] }
@@ -127,8 +132,9 @@ export function requestedVersion(value: string | undefined): Version | undefined
 
 /** Where to send JSON-RPC for a remote card, and in which dialect. Undefined when it offers no JSON-RPC binding. */
 export function endpoint(remote: A2A.RemoteCard): { readonly url: string; readonly version: Version } | undefined {
-  const jsonrpc = remote.supportedInterfaces?.find((item) => item.protocolBinding.toUpperCase() === "JSONRPC")
-  if (jsonrpc) return { url: jsonrpc.url, version: jsonrpc.protocolVersion?.startsWith("0.") ? "0.3" : "1.0" }
+  const jsonrpc = (remote.supportedInterfaces ?? []).filter((item) => item.protocolBinding.toUpperCase() === "JSONRPC")
+  const preferred = jsonrpc.find((item) => !item.protocolVersion?.startsWith("0.")) ?? jsonrpc[0]
+  if (preferred) return { url: preferred.url, version: preferred.protocolVersion?.startsWith("0.") ? "0.3" : "1.0" }
   if (remote.url) return { url: remote.url, version: "0.3" }
   return undefined
 }

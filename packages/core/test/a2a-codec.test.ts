@@ -128,5 +128,36 @@ describe("A2ACodec", () => {
         ],
       }),
     ).toEqual({ url: "https://a/rpc", version: "1.0" })
+    // 1.0 wins wherever it is listed.
+    expect(
+      A2ACodec.endpoint({
+        name: "a",
+        supportedInterfaces: [
+          { url: "https://a/v03", protocolBinding: "JSONRPC", protocolVersion: "0.3" },
+          { url: "https://a/v10", protocolBinding: "JSONRPC", protocolVersion: "1.0" },
+        ],
+      }),
+    ).toEqual({ url: "https://a/v10", version: "1.0" })
+  })
+
+  test("lists the 1.0 interface on the 0.3 card too", () => {
+    const card = A2ACodec.card("0.3", {
+      name: "a",
+      description: "a",
+      version: "1",
+      url: "https://a/rpc",
+      skills: [],
+      basicAuth: true,
+    })
+    // A 0.3 client ignores supportedInterfaces; a 1.x client picks 1.0 from it.
+    expect(card).toMatchObject({
+      protocolVersion: "0.3.0",
+      url: "https://a/rpc",
+      securitySchemes: { basic: { type: "http", scheme: "basic" } },
+      supportedInterfaces: [
+        { url: "https://a/rpc", protocolBinding: "JSONRPC", protocolVersion: "1.0" },
+        { url: "https://a/rpc", protocolBinding: "JSONRPC", protocolVersion: "0.3" },
+      ],
+    })
   })
 })

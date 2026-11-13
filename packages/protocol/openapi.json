@@ -16327,6 +16327,25 @@
             "type": "string",
             "enum": ["JSONRPC"]
           },
+          "supportedInterfaces": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "protocolBinding": {
+                  "type": "string"
+                },
+                "protocolVersion": {
+                  "type": "string"
+                }
+              },
+              "required": ["url", "protocolBinding", "protocolVersion"],
+              "additionalProperties": false
+            }
+          },
           "capabilities": {
             "type": "object",
             "properties": {
@@ -16383,6 +16402,7 @@
           "protocolVersion",
           "url",
           "preferredTransport",
+          "supportedInterfaces",
           "capabilities"
         ],
         "additionalProperties": false,

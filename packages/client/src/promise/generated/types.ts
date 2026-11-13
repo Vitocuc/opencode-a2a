@@ -376,6 +376,7 @@ export type A2ACard03 = {
   protocolVersion: string
   url: string
   preferredTransport: "JSONRPC"
+  supportedInterfaces: Array<{ url: string; protocolBinding: string; protocolVersion: string }>
   capabilities: { streaming: boolean; pushNotifications: boolean; stateTransitionHistory: boolean }
   securitySchemes?: { [x: string]: { type: "http"; scheme: string } }
   security?: Array<{ [x: string]: Array<string> }>

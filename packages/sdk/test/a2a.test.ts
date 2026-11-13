@@ -83,6 +83,8 @@ it.live(
         url: `${base}/api/experimental/a2a?location%5Bdirectory%5D=${encodeURIComponent(project)}`,
         capabilities: { streaming: true },
         skills: expect.arrayContaining([expect.objectContaining({ id: "build" })]),
+        // A 1.x client that fetches the card without A2A-Version still finds the 1.0 interface.
+        supportedInterfaces: expect.arrayContaining([expect.objectContaining({ protocolVersion: "1.0" })]),
       })
       expect(yield* json(cardURL, { headers: { "A2A-Version": "1.0" } })).toMatchObject({
         supportedInterfaces: [{ protocolBinding: "JSONRPC", protocolVersion: "1.0" }],
@@ -111,11 +113,11 @@ it.live(
             }),
           ),
         )
+      // Discovery picks 1.0 on its own; pinning the target's dialect still exercises the 0.3 client.
+      const discovered = yield* viaServer(A2AClient.discover(http, { url: cardURL }))
+      expect(discovered.version).toBe("1.0")
       for (const version of ["0.3", "1.0"] as const) {
-        const target = yield* viaServer(
-          A2AClient.discover(http, { url: cardURL, headers: version === "1.0" ? { "A2A-Version": "1.0" } : {} }),
-        )
-        expect(target.version).toBe(version)
+        const target = { ...discovered, version }
         const first = yield* viaServer(A2AClient.send(http, target, { text: "Say hello", timeout: "20 seconds" }))
         expect(first).toMatchObject({ status: { state: "completed" } })
         expect(A2ACodec.text(first)).toBe("Hello from OpenCode")

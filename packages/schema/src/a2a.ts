@@ -194,6 +194,9 @@ export const Card03 = Schema.Struct({
   protocolVersion: Schema.String,
   url: Schema.String,
   preferredTransport: Schema.Literal("JSONRPC"),
+  supportedInterfaces: Schema.Array(
+    Schema.Struct({ url: Schema.String, protocolBinding: Schema.String, protocolVersion: Schema.String }),
+  ),
   capabilities: Schema.Struct({
     streaming: Schema.Boolean,
     pushNotifications: Schema.Boolean,

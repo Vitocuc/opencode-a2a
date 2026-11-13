@@ -31,7 +31,8 @@ export const discover = Effect.fn("A2AClient.discover")(function* (http: HttpCli
   const card = yield* http
     .execute(
       HttpClientRequest.get(cardURL(remote.url)).pipe(
-        HttpClientRequest.setHeaders(remote.headers ?? {}),
+        // Without A2A-Version a server may send a 0.3-only card, so ask for 1.0 unless the config says otherwise.
+        HttpClientRequest.setHeaders({ "A2A-Version": "1.0", ...remote.headers }),
         HttpClientRequest.acceptJson,
       ),
     )

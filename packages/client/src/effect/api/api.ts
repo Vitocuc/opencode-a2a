@@ -2599,6 +2599,11 @@ export type ExperimentalA2aCardOutput =
       readonly protocolVersion: string
       readonly url: string
       readonly preferredTransport: "JSONRPC"
+      readonly supportedInterfaces: ReadonlyArray<{
+        readonly url: string
+        readonly protocolBinding: string
+        readonly protocolVersion: string
+      }>
       readonly capabilities: {
         readonly streaming: boolean
         readonly pushNotifications: boolean
