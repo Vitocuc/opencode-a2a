@@ -23,6 +23,7 @@ Generated clients follow the assembled public `HttpApi`. GitHub issues own activ
 | ----------------------- | --------------------------------------------------------------------------------------- |
 | [Session](./session.md) | Explain prompt admission, execution, instructions, compaction, and recovery boundaries. |
 | [Tools](./tools.md)     | Explain tool construction, registration, execution, and outcome laws.                   |
+| [A2A](./a2a.md)         | Explain each A2A connection, in both roles, and how OpenCode elements map to A2A.       |
 
 ## Decision Records
 
