@@ -316,13 +316,16 @@ it.live(
 )
 
 // One A2A-enabled project on a fresh server, returned once the scripted model has loaded.
-const serveProject = (prefix: string, llm: TestLLM.TestInterface) =>
+const serveProject = (prefix: string, llm: TestLLM.TestInterface, config: Record<string, unknown> = {}) =>
   Effect.gen(function* () {
     const dir = (yield* tmpdirScoped(prefix)).path
     const project = path.join(dir, "project")
     yield* Effect.promise(async () => {
       await fs.mkdir(project, { recursive: true })
-      await fs.writeFile(path.join(project, "opencode.json"), JSON.stringify({ experimental: { a2a: true } }))
+      await fs.writeFile(
+        path.join(project, "opencode.json"),
+        JSON.stringify({ experimental: { a2a: true }, ...config }),
+      )
     })
     const handler = yield* ServerFetch.make(
       {
@@ -492,6 +495,110 @@ it.live(
       // The answer lives in the artifact only, so clients that join the parts don't show it twice.
       expect(done.status.message).toBeUndefined()
       expect((yield* settled(second.id)).artifacts?.[0]?.parts).toEqual([{ text: "Second answer" }])
+    }),
+  20_000,
+)
+
+// Nobody watches opencode's UI during an A2A task, so permission prompts and questions go to the client agent.
+it.live(
+  "asks the client agent for input and continues the same task with its answer",
+  () =>
+    Effect.gen(function* () {
+      const llm = yield* TestLLM.Test.pipe(Effect.provide(TestLLM.testLayer()))
+      // Each prompt makes one tool call, then answers once the call's result is in the history.
+      yield* llm.serve((request) => {
+        if (request.tools.length === 0) return TestLLM.text("Title", "title")
+        const body = JSON.stringify(request.messages)
+        const seen = (id: string) => body.split(id).length - 1
+        if (body.includes("Ask me"))
+          return seen("call-question") >= 2
+            ? TestLLM.text("Question done", "done")
+            : TestLLM.toolCall("call-question", "question", {
+                questions: [
+                  {
+                    question: "Which color?",
+                    header: "Color",
+                    options: [{ label: "Red", description: "warm" }],
+                  },
+                ],
+              })
+        return seen("call-shell") >= 2
+          ? TestLLM.text("Shell done", "done")
+          : TestLLM.toolCall("call-shell", "shell", { command: "echo hi" })
+      })
+      const { handler, query } = yield* serveProject("opencode-a2a-input-", llm, {
+        permissions: [{ action: "shell", resource: "*", effect: "ask" }],
+      })
+      const post = (method: string, params: unknown) =>
+        Effect.promise(() =>
+          handler(
+            new Request(`${base}/api/experimental/a2a${query}`, {
+              method: "POST",
+              headers: { "content-type": "application/json", "a2a-version": "1.0" },
+              body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+            }),
+          ),
+        )
+      type Task = {
+        id: string
+        contextId: string
+        status: { state: string; message?: { parts: { text?: string }[] } }
+        artifacts?: { parts: { text?: string }[] }[]
+      }
+      type Reply = { result?: { task?: Task } & Task; error?: { code: number; message: string } }
+      const rpc = (method: string, params: unknown) =>
+        post(method, params).pipe(Effect.flatMap((response) => Effect.promise(() => response.json() as Promise<Reply>)))
+      const message = (messageId: string, text: string, taskId?: string, returnImmediately = false) => ({
+        message: { messageId, role: "ROLE_USER", parts: [{ text }], taskId },
+        configuration: { returnImmediately },
+      })
+      const statusText = (task: Task) => task.status.message?.parts.map((part) => part.text).join("") ?? ""
+
+      // A message naming a task that is still working is rejected: it is not waiting for input.
+      const gate = yield* llm.gate()
+      const started = (yield* rpc("SendMessage", message("run", "Run echo", undefined, true))).result!.task!
+      yield* gate.started
+      expect((yield* rpc("SendMessage", message("early", "allow", started.id))).error).toMatchObject({
+        code: -32602,
+      })
+      yield* gate.release
+
+      // A blocking send returns at input-required, with the permission prompt as the status message.
+      const asked = yield* rpc("GetTask", { id: started.id }).pipe(
+        Effect.map((reply) => reply.result!),
+        Effect.repeat({
+          until: (task) => task.status.state === "TASK_STATE_INPUT_REQUIRED",
+          schedule: Schedule.spaced("50 millis"),
+        }),
+        Effect.timeoutOrElse({ duration: "10 seconds", orElse: () => Effect.die(new Error("never asked")) }),
+      )
+      expect(statusText(asked)).toContain("shell")
+      expect(statusText(asked)).toContain("allow")
+      // An answer that is not a permission reply is rejected and leaves the prompt pending.
+      expect((yield* rpc("SendMessage", message("maybe", "maybe", started.id))).error).toMatchObject({
+        code: -32602,
+      })
+      const allowed = (yield* rpc("SendMessage", message("allow", "allow", started.id))).result!.task!
+      expect(allowed).toMatchObject({ id: started.id, status: { state: "TASK_STATE_COMPLETED" } })
+      expect(allowed.artifacts?.[0]?.parts).toEqual([{ text: "Shell done" }])
+      // A finished task takes no more messages.
+      expect((yield* rpc("SendMessage", message("late", "again", started.id))).error).toMatchObject({
+        code: -32004,
+      })
+
+      // A stream ends at input-required with the question; a text answer goes to the question and the task finishes.
+      const stream = yield* post("SendStreamingMessage", message("ask", "Ask me"))
+      const frames = (yield* Effect.promise(() => stream.text()))
+        .split("\n\n")
+        .filter((frame) => frame.startsWith("data: "))
+        .map((frame) => JSON.parse(frame.slice("data: ".length)).result)
+      const last = frames.at(-1) as { statusUpdate: { taskId: string; status: Task["status"] } }
+      expect(last.statusUpdate.status.state).toBe("TASK_STATE_INPUT_REQUIRED")
+      expect(JSON.stringify(last.statusUpdate.status.message)).toContain("Which color?")
+      const answered = (yield* rpc("SendMessage", message("red", "Red", last.statusUpdate.taskId))).result!.task!
+      expect(answered).toMatchObject({ id: last.statusUpdate.taskId, status: { state: "TASK_STATE_COMPLETED" } })
+      expect(answered.artifacts?.[0]?.parts).toEqual([{ text: "Question done" }])
+      expect(JSON.stringify((yield* llm.requests()).at(-1))).toContain("Red")
     }),
   20_000,
 )

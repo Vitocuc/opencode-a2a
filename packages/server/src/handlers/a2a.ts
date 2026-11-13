@@ -2,7 +2,9 @@ import { A2ACodec } from "@opencode/core/a2a/codec"
 import { Agent } from "@opencode/core/agent"
 import { Bus } from "@opencode/core/bus"
 import { Flag } from "@opencode/core/flag"
+import { Form } from "@opencode/core/form"
 import { Location } from "@opencode/core/location"
+import { Permission } from "@opencode/core/permission"
 import { LocationServiceMap } from "@opencode/core/location-service-map"
 import { Session } from "@opencode/core/session"
 import { ForbiddenError } from "@opencode/protocol/errors"
@@ -11,7 +13,7 @@ import { A2A } from "@opencode/schema/a2a"
 import { SessionEvent } from "@opencode/schema/session-event"
 import { SessionMessage } from "@opencode/schema/session-message"
 import { Hash } from "@opencode/util/hash"
-import { Cause, Data, DateTime, Effect, Option, Queue, Schedule, Schema, Stream } from "effect"
+import { Cause, Data, DateTime, Effect, Option, Queue, Schema, Stream } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/http"
 import path from "path"
 import { ServerAuth } from "../auth"
@@ -91,8 +93,12 @@ export const makeA2A = Effect.gen(function* () {
     const dialect = selected.version
     const location = requestRef(request)
     const params = decoded.value.params
+    // Streams run after this handler returns, so they carry the Location's permission and form services with them.
+    const services = yield* Effect.context<Permission.Service | Form.Service>()
+    const stream = (ref: TaskRef, initial: A2ACodec.Task) =>
+      sse(id, dialect, follow(ref, initial).pipe(Stream.provideContext(services)))
 
-    const answer: Effect.Effect<HttpServerResponse.HttpServerResponse, RpcError> =
+    const answer: Effect.Effect<HttpServerResponse.HttpServerResponse, RpcError, Permission.Service | Form.Service> =
       selected.method === "send"
         ? send(location, params).pipe(
             Effect.flatMap((task) =>
@@ -102,8 +108,7 @@ export const makeA2A = Effect.gen(function* () {
           )
         : selected.method === "stream"
           ? send(location, params).pipe(
-              Effect.flatMap((task) => read(task.ref).pipe(Effect.map((initial) => follow(task.ref, initial)))),
-              Effect.map((events) => sse(id, dialect, events)),
+              Effect.flatMap((task) => read(task.ref).pipe(Effect.map((initial) => stream(task.ref, initial)))),
             )
           : selected.method === "subscribe"
             ? taskParams(params).pipe(
@@ -117,7 +122,7 @@ export const makeA2A = Effect.gen(function* () {
                           message: `Task ${task.id} is already ${task.status.state}`,
                         }),
                     ),
-                    Effect.map((task) => sse(id, dialect, follow(input.ref, task))),
+                    Effect.map((task) => stream(input.ref, task)),
                   ),
                 ),
               )
@@ -152,6 +157,12 @@ export const makeA2A = Effect.gen(function* () {
       const input = yield* decodeParams(A2A.SendParams, params)
       const message = A2ACodec.normalizeMessage(input.message)
       if (message.role !== "user") return yield* invalidParams("message.role must be user")
+      const configuration = input.configuration
+      const options = {
+        blocking: configuration?.blocking !== false && configuration?.returnImmediately !== true,
+        historyLength: configuration?.historyLength,
+      }
+      if (message.taskId !== undefined) return { ref: yield* answer(message, message.taskId), ...options }
       const agent = typeof message.metadata?.agent === "string" ? Agent.ID.make(message.metadata.agent) : undefined
       const sessionID = yield* contextSession(message)
       // A new Session is left untitled so the runner names it from the conversation.
@@ -175,12 +186,74 @@ export const makeA2A = Effect.gen(function* () {
           metadata: { a2a: { messageId: message.messageId } },
         })
         .pipe(Effect.mapError(internal))
-      const configuration = input.configuration
-      return {
-        ref: { sessionID: session.id, messageID },
-        blocking: configuration?.blocking !== false && configuration?.returnImmediately !== true,
-        historyLength: configuration?.historyLength,
+      return { ref: { sessionID: session.id, messageID }, ...options }
+    })
+  }
+
+  /**
+   * A message naming a task answers what that task is waiting on: its Session's pending permission prompt or
+   * question. The task continues under the same ID. A task that is not waiting for input takes no message.
+   */
+  function answer(message: A2ACodec.Message, taskId: string) {
+    return Effect.gen(function* () {
+      const ref = yield* Option.match(parseTaskID(taskId), {
+        onNone: () => Effect.fail(taskNotFound(taskId)),
+        onSome: (ref) => Effect.succeed(ref),
+      })
+      if (message.contextId !== undefined && message.contextId !== ref.sessionID)
+        return yield* invalidParams(`contextId ${message.contextId} does not match task ${taskId}`)
+      const task = yield* read(ref)
+      if (A2ACodec.isTerminal(task.status.state))
+        return yield* new RpcError({
+          code: A2ACodec.errors.unsupportedOperation,
+          message: `Task ${taskId} is already ${task.status.state} and takes no more messages`,
+        })
+      const ask = task.status.state === "input-required" ? yield* pending(ref.sessionID) : undefined
+      if (!ask) return yield* invalidParams(`Task ${taskId} is not waiting for input`)
+      yield* resolve(ask, message)
+      return ref
+    })
+  }
+
+  /** What a Session waits on someone to answer: a permission prompt, or a form such as the question tool's. */
+  function pending(sessionID: Session.ID) {
+    return Effect.gen(function* () {
+      const permission = yield* Permission.Service
+      const forms = yield* Form.Service
+      const request = (yield* permission.forSession(sessionID))[0]
+      if (request) return { type: "permission", request } as const
+      const form = (yield* forms.list({ sessionID }))[0]
+      if (form) return { type: "form", form } as const
+      return undefined
+    })
+  }
+
+  function resolve(ask: Pending, message: A2ACodec.Message) {
+    return Effect.gen(function* () {
+      const text = message.parts
+        .flatMap((part) => (part.type === "text" ? [part.text] : []))
+        .join("")
+        .trim()
+      const data = message.parts.flatMap((part) => (part.type === "data" ? [part.data] : []))[0]
+      if (ask.type === "permission") {
+        const permission = yield* Permission.Service
+        const choice = (typeof data === "string" ? data : text).toLowerCase()
+        const reply = permissionReplies[choice as keyof typeof permissionReplies]
+        if (!reply) return yield* invalidParams(`Reply with ${PERMISSION_CHOICES} to answer the permission prompt`)
+        return yield* permission.reply({ requestID: ask.request.id, reply }).pipe(Effect.mapError(internal))
       }
+      const forms = yield* Form.Service
+      const first = ask.form.fields[0]
+      const fields =
+        data !== null && typeof data === "object" && !Array.isArray(data)
+          ? Schema.decodeUnknownOption(Form.Answer)(data)
+          : Option.some({ [first.key]: first.type === "multiselect" ? [text] : text })
+      if (Option.isNone(fields) || (text === "" && data === undefined))
+        return yield* invalidParams("Reply with the answer as text, or as a data part keyed by field")
+      return yield* forms.reply({ id: ask.form.id, answer: fields.value }).pipe(
+        Effect.catchTag("Form.InvalidAnswerError", (error) => Effect.fail(invalidParams(error.message))),
+        Effect.mapError((error) => (error instanceof RpcError ? error : internal(error))),
+      )
     })
   }
 
@@ -215,9 +288,35 @@ export const makeA2A = Effect.gen(function* () {
               })
               .pipe(
                 Effect.mapError(internal),
-                Effect.map((after) => fromHistory(ref, user, after, historyLength)),
+                Effect.flatMap((after) => waitingOnInput(fromHistory(ref, user, after, historyLength))),
               ),
         }),
+      ),
+    )
+  }
+
+  /** A working task whose Session waits on a permission prompt or question needs input from the client agent. */
+  function waitingOnInput(task: A2ACodec.Task) {
+    if (task.status.state !== "working") return Effect.succeed(task)
+    return pending(task.contextId as Session.ID).pipe(
+      Effect.map(
+        (ask): A2ACodec.Task =>
+          ask
+            ? {
+                ...task,
+                status: {
+                  ...task.status,
+                  state: "input-required",
+                  message: {
+                    messageId: `${task.id}:input`,
+                    role: "agent",
+                    parts: [{ type: "text", text: askText(ask) }],
+                    contextId: task.contextId,
+                    taskId: task.id,
+                  },
+                },
+              }
+            : task,
       ),
     )
   }
@@ -260,6 +359,7 @@ export const makeA2A = Effect.gen(function* () {
                 : [],
             ),
           ),
+          Effect.flatMap((found) => Effect.forEach(found, waitingOnInput)),
         ),
       )
       const status = input.status === undefined ? undefined : A2ACodec.normalizeState(input.status)
@@ -304,20 +404,8 @@ export const makeA2A = Effect.gen(function* () {
     return page(undefined, [])
   }
 
-  /**
-   * The Session a message continues: its contextId, else the Session of the task it answers. A taskId must name an
-   * existing task, and a contextId sent with it must be that task's context.
-   */
+  /** The Session a new task continues: its contextId's, or none for a new context. */
   function contextSession(message: A2ACodec.Message): Effect.Effect<Session.ID | undefined, RpcError> {
-    const taskId = message.taskId
-    if (taskId !== undefined)
-      return Option.match(parseTaskID(taskId), {
-        onNone: () => Effect.fail(taskNotFound(taskId)),
-        onSome: (ref) =>
-          message.contextId !== undefined && message.contextId !== ref.sessionID
-            ? Effect.fail(invalidParams(`contextId ${message.contextId} does not match task ${taskId}`))
-            : prompted(ref).pipe(Effect.as(ref.sessionID)),
-      })
     if (message.contextId !== undefined)
       return Option.match(Schema.decodeUnknownOption(Session.ID)(message.contextId), {
         onNone: () => Effect.fail(invalidParams(`Unknown contextId: ${message.contextId}`)),
@@ -326,15 +414,28 @@ export const makeA2A = Effect.gen(function* () {
     return Effect.succeed(undefined)
   }
 
-  /** Waits until the task reaches a terminal state. */
+  /**
+   * Waits until the task is terminal or waits for input, re-reading it whenever its Session reports progress. The
+   * subscription starts before the first read, so progress made in between still wakes it.
+   */
   function settle(ref: TaskRef, historyLength?: number) {
-    return sessions.wait(ref.sessionID).pipe(
-      Effect.mapError(internal),
-      Effect.andThen(read(ref, historyLength)),
-      // The Session can go idle before this prompt's turn when it was queued behind other work.
-      Effect.repeat({
-        schedule: Schedule.spaced("250 millis"),
-        until: (task) => A2ACodec.isTerminal(task.status.state),
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const woken = yield* Queue.make<void>({ capacity: 1, strategy: "sliding" })
+        yield* bus.subscribe(progress).pipe(
+          Stream.filter((event) => sessionOf(event) === ref.sessionID),
+          Stream.runForEach(() => Queue.offer(woken, undefined)),
+          Effect.forkScoped({ startImmediately: true }),
+        )
+        const check = (): Effect.Effect<A2ACodec.Task, RpcError, Permission.Service | Form.Service> =>
+          read(ref, historyLength).pipe(
+            Effect.flatMap((task) =>
+              A2ACodec.isTerminal(task.status.state) || A2ACodec.isInterrupted(task.status.state)
+                ? Effect.succeed(task)
+                : Queue.take(woken).pipe(Effect.andThen(Effect.suspend(check))),
+            ),
+          )
+        return yield* check()
       }),
     )
   }
@@ -367,7 +468,10 @@ export const makeA2A = Effect.gen(function* () {
    * live Bus events rather than the Session log, whose payloads are only kept when the server persists events. The
    * subscription starts before the first frame, and a re-read right after it catches a task that finished earlier.
    */
-  function follow(ref: TaskRef, initial: A2ACodec.Task): Stream.Stream<A2ACodec.Event, RpcError> {
+  function follow(
+    ref: TaskRef,
+    initial: A2ACodec.Task,
+  ): Stream.Stream<A2ACodec.Event, RpcError, Permission.Service | Form.Service> {
     const id = taskID(ref)
     const chunks = { count: 0 }
     const artifact = (
@@ -383,6 +487,9 @@ export const makeA2A = Effect.gen(function* () {
     // A turn that finished before the stream started streamed no chunks, so its answer goes out whole. Streamed
     // chunks end with an empty one marked lastChunk, since a segment is only known to be last afterwards.
     const final = (task: A2ACodec.Task): A2ACodec.Event[] => {
+      // A task waiting for input ends this stream; the client agent answers it with a message on the same task.
+      if (A2ACodec.isInterrupted(task.status.state))
+        return [{ type: "status", taskId: id, contextId: ref.sessionID, status: task.status }]
       if (!A2ACodec.isTerminal(task.status.state)) return []
       const answer = task.artifacts?.[0]?.parts[0]
       const closing =
@@ -399,29 +506,15 @@ export const makeA2A = Effect.gen(function* () {
     }
     return Stream.unwrap(
       Effect.gen(function* () {
-        const events = yield* Queue.unbounded<
-          | SessionEvent.Text.Ended
-          | SessionEvent.Execution.Succeeded
-          | SessionEvent.Execution.Failed
-          | SessionEvent.Execution.Interrupted
-          | SessionEvent.InboxDelivered
-        >()
-        yield* bus
-          .subscribe([
-            SessionEvent.Text.Ended,
-            SessionEvent.Execution.Succeeded,
-            SessionEvent.Execution.Failed,
-            SessionEvent.Execution.Interrupted,
-            // A queued prompt's delivery ends this task's turn within the same execution.
-            SessionEvent.InboxDelivered,
-          ])
-          .pipe(
-            Stream.filter((event) => event.data.sessionID === ref.sessionID),
-            Stream.runForEach((event) => Queue.offer(events, event)),
-            Effect.forkScoped({ startImmediately: true }),
-          )
+        const followed = [SessionEvent.Text.Ended, ...progress] as const
+        const events = yield* Queue.unbounded<Bus.SubscribePayload<typeof followed>>()
+        yield* bus.subscribe(followed).pipe(
+          Stream.filter((event) => sessionOf(event) === ref.sessionID),
+          Stream.runForEach((event) => Queue.offer(events, event)),
+          Effect.forkScoped({ startImmediately: true }),
+        )
         const live = Stream.fromQueue(events).pipe(
-          Stream.mapEffect((event): Effect.Effect<A2ACodec.Event[], RpcError> => {
+          Stream.mapEffect((event): Effect.Effect<A2ACodec.Event[], RpcError, Permission.Service | Form.Service> => {
             if (event.type === "session.text.ended")
               return Effect.succeed(
                 event.data.text.length > 0 ? [artifact(event.data.text, { append: chunks.count++ > 0 })] : [],
@@ -441,6 +534,54 @@ export const makeA2A = Effect.gen(function* () {
 })
 
 type TaskRef = { readonly sessionID: Session.ID; readonly messageID: SessionMessage.ID }
+
+type Pending =
+  | { readonly type: "permission"; readonly request: Permission.Request }
+  | { readonly type: "form"; readonly form: Form.Info }
+
+/**
+ * Session events after which a task may have changed state: its execution ended, the next queued prompt was
+ * delivered (which ends this one's turn), or it started waiting on a permission prompt or question.
+ */
+const progress = [
+  SessionEvent.Execution.Succeeded,
+  SessionEvent.Execution.Failed,
+  SessionEvent.Execution.Interrupted,
+  SessionEvent.InboxDelivered,
+  Permission.Event.Asked,
+  Form.Event.Created,
+] as const
+
+const sessionOf = (event: Bus.SubscribePayload<readonly [typeof SessionEvent.Text.Ended, ...typeof progress]>) =>
+  event.type === "form.created" ? event.data.form.sessionID : event.data.sessionID
+
+const permissionReplies = { allow: "once", always: "always", deny: "reject" } as const
+const PERMISSION_CHOICES = `"allow", "always" or "deny"`
+
+/** The prompt a client agent sees while a task waits for input. */
+function askText(ask: Pending) {
+  if (ask.type === "permission") {
+    const resources = ask.request.resources.filter((resource) => resource !== "*")
+    return [
+      `opencode needs permission to use ${ask.request.action}${resources.length > 0 ? ` on ${resources.join(", ")}` : ""}.`,
+      ask.request.message,
+      `Reply ${PERMISSION_CHOICES}.`,
+    ]
+      .filter((line) => line !== undefined && line !== "")
+      .join(" ")
+  }
+  const fields = ask.form.fields.map((field) => {
+    const options = "options" in field && field.options ? field.options.map((option) => option.label) : []
+    return [field.title, field.description, options.length > 0 ? `(options: ${options.join(", ")})` : undefined]
+      .filter((part) => part !== undefined && part !== "")
+      .join(" ")
+  })
+  const reply =
+    ask.form.fields.length > 1
+      ? `Reply with a data part keyed by ${ask.form.fields.map((field) => field.key).join(", ")}.`
+      : "Reply with your answer as text."
+  return [ask.form.title + ":", ...fields, reply].join(" ")
+}
 
 class RpcError extends Data.TaggedError("A2A.RpcError")<{ readonly code: number; readonly message: string }> {}
 
