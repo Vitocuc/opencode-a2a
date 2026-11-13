@@ -186,6 +186,12 @@ describe("web UI", () => {
           expect(missing.status).toBe(404)
           expect(yield* Effect.promise(() => missing.text())).toBe("")
 
+          // Well-known URIs (RFC 8615) are never app routes: A2A clients look for /.well-known/agent-card.json and
+          // must get "not found" from the API, not the SPA index.
+          const wellKnown = yield* Effect.promise(() => fetch(`${origin}/.well-known/agent-card.json`))
+          expect(wellKnown.status).toBe(404)
+          expect(yield* Effect.promise(() => wellKnown.text())).toBe("")
+
           yield* Effect.forEach(["/_assets/old.js", "/_assets/old.css", "/_assets/missing"], (pathname) =>
             Effect.gen(function* () {
               const missing = yield* Effect.promise(() => fetch(`${origin}${pathname}`))

@@ -17,10 +17,12 @@ export const handler = Effect.fn("cli.web-ui.handler")(function* (options?: {
       const request = yield* HttpServerRequest.HttpServerRequest
       const url = new URL(request.url, "http://localhost")
       // Serve the web shell before API authentication so a signed-out browser gets the app's sign-in screen.
+      // Well-known URIs (RFC 8615) are never app routes, so they go to the API and are "not found" there.
       if (
         url.pathname === "/api" ||
         url.pathname.startsWith("/api/") ||
         url.pathname.startsWith("/auth/") ||
+        url.pathname.startsWith("/.well-known/") ||
         url.pathname === "/openapi.json"
       )
         return yield* api.pipe(
