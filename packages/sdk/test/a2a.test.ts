@@ -313,43 +313,50 @@ it.live(
   20_000,
 )
 
+// One A2A-enabled project on a fresh server, returned once the scripted model has loaded.
+const serveProject = (prefix: string, llm: TestLLM.TestInterface) =>
+  Effect.gen(function* () {
+    const dir = (yield* tmpdirScoped(prefix)).path
+    const project = path.join(dir, "project")
+    yield* Effect.promise(async () => {
+      await fs.mkdir(project, { recursive: true })
+      await fs.writeFile(path.join(project, "opencode.json"), JSON.stringify({ experimental: { a2a: true } }))
+    })
+    const handler = yield* ServerFetch.make(
+      {
+        app: { version: "test" },
+        database: { path: path.join(dir, "opencode.db") },
+        config: {
+          directory: path.join(dir, "global"),
+          project: true,
+          claude: false,
+          content: JSON.stringify(provider),
+        },
+        models: { fetch: false },
+        fs: { filewatcher: false },
+      },
+      { overrides: [llmClient.replace(Layer.succeed(LLMClient.Service, llm))] },
+    )
+    const query = `?location[directory]=${encodeURIComponent(project)}`
+    yield* Effect.promise(() => handler(new Request(`${base}/api/model${query}`)).then((r) => r.json())).pipe(
+      Effect.repeat({
+        until: (body: { data: { id: string }[] }) => body.data.some((model) => model.id === "fictional-chat"),
+        schedule: Schedule.spaced("20 millis"),
+      }),
+      Effect.timeoutOrElse({ duration: "5 seconds", orElse: () => Effect.die(new Error("model never loaded")) }),
+    )
+    return { handler, query }
+  })
+
 // A real model is still answering when the stream starts, so the stream must follow live events to the end.
 it.live(
   "streams a task that is still running when the stream starts",
   () =>
     Effect.gen(function* () {
-      const dir = (yield* tmpdirScoped("opencode-a2a-stream-")).path
-      const project = path.join(dir, "project")
-      yield* Effect.promise(async () => {
-        await fs.mkdir(project, { recursive: true })
-        await fs.writeFile(path.join(project, "opencode.json"), JSON.stringify({ experimental: { a2a: true } }))
-      })
       const llm = yield* TestLLM.Test.pipe(
         Effect.provide(TestLLM.testLayer({ fallback: TestLLM.text("Answered late", "answer") })),
       )
-      const handler = yield* ServerFetch.make(
-        {
-          app: { version: "test" },
-          database: { path: path.join(dir, "opencode.db") },
-          config: {
-            directory: path.join(dir, "global"),
-            project: true,
-            claude: false,
-            content: JSON.stringify(provider),
-          },
-          models: { fetch: false },
-          fs: { filewatcher: false },
-        },
-        { overrides: [llmClient.replace(Layer.succeed(LLMClient.Service, llm))] },
-      )
-      const query = `?location[directory]=${encodeURIComponent(project)}`
-      yield* Effect.promise(() => handler(new Request(`${base}/api/model${query}`)).then((r) => r.json())).pipe(
-        Effect.repeat({
-          until: (body: { data: { id: string }[] }) => body.data.some((model) => model.id === "fictional-chat"),
-          schedule: Schedule.spaced("20 millis"),
-        }),
-        Effect.timeoutOrElse({ duration: "5 seconds", orElse: () => Effect.die(new Error("model never loaded")) }),
-      )
+      const { handler, query } = yield* serveProject("opencode-a2a-stream-", llm)
       // The model holds its answer until the stream has sent its first frame.
       const gate = yield* llm.gate()
       const response = yield* Effect.promise(() =>
@@ -398,6 +405,87 @@ it.live(
         }),
       )
       expect(frames.at(-1)).toMatchObject({ statusUpdate: { status: { state: "TASK_STATE_COMPLETED" } } })
+    }),
+  20_000,
+)
+
+// A second task sent while the first is running waits for it, so each task reports its own answer.
+it.live(
+  "queues a task sent into a context that is still working",
+  () =>
+    Effect.gen(function* () {
+      const llm = yield* TestLLM.Test.pipe(Effect.provide(TestLLM.testLayer()))
+      // Answer whichever task the model saw last; anything else, such as a title, gets a filler.
+      yield* llm.serve((request) => {
+        const body = JSON.stringify(request)
+        const first = body.lastIndexOf("first task")
+        const second = body.lastIndexOf("second task")
+        if (second > first) return TestLLM.text("Second answer", "second")
+        if (first >= 0) return TestLLM.text("First answer", "first")
+        return TestLLM.text("Title", "title")
+      })
+      const { handler, query } = yield* serveProject("opencode-a2a-queue-", llm)
+      const rpc = (method: string, params: unknown) =>
+        Effect.promise(() =>
+          handler(
+            new Request(`${base}/api/experimental/a2a${query}`, {
+              method: "POST",
+              headers: { "content-type": "application/json", "a2a-version": "1.0" },
+              body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+            }),
+          ).then((response) => response.json()),
+        )
+      const send = (messageId: string, text: string, contextId?: string) =>
+        rpc("SendMessage", {
+          message: { messageId, role: "ROLE_USER", parts: [{ text }], contextId },
+          configuration: { returnImmediately: true },
+        }).pipe(Effect.map((body: { result: { task: { id: string; contextId: string } } }) => body.result.task))
+      const get = (id: string) =>
+        rpc("GetTask", { id }).pipe(
+          Effect.map(
+            (body: { result: { status: { state: string }; artifacts?: { parts: { text?: string }[] }[] } }) =>
+              body.result,
+          ),
+        )
+      const settled = (id: string) =>
+        get(id).pipe(
+          Effect.repeat({
+            until: (task) => ["TASK_STATE_COMPLETED", "TASK_STATE_FAILED"].includes(task.status.state),
+            schedule: Schedule.spaced("50 millis"),
+          }),
+          Effect.timeoutOrElse({ duration: "10 seconds", orElse: () => Effect.die(new Error(`${id} never settled`)) }),
+        )
+
+      // Hold the model on the first task, then send the second into the same context.
+      const gate = yield* llm.gate()
+      const first = yield* send("one", "Do the first task")
+      yield* gate.started
+      const second = yield* send("two", "Do the second task", first.contextId)
+      expect(second.contextId).toBe(first.contextId)
+      expect((yield* get(second.id)).status.state).toBe("TASK_STATE_SUBMITTED")
+      // A subscriber to the first task stops when the second is delivered, before its answer.
+      const subscription = yield* Effect.promise(() =>
+        handler(
+          new Request(`${base}/api/experimental/a2a${query}`, {
+            method: "POST",
+            headers: { "content-type": "application/json", "a2a-version": "1.0" },
+            body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "SubscribeToTask", params: { id: first.id } }),
+          }),
+        ),
+      )
+      yield* gate.release
+      const frames = (yield* Effect.promise(() => subscription.text()))
+        .split("\n\n")
+        .filter((frame) => frame.startsWith("data: "))
+        .map((frame) => frame.slice("data: ".length))
+      expect(frames.join()).toContain("First answer")
+      expect(frames.join()).not.toContain("Second answer")
+      expect(JSON.parse(frames.at(-1)!).result).toMatchObject({
+        statusUpdate: { status: { state: "TASK_STATE_COMPLETED" } },
+      })
+
+      expect((yield* settled(first.id)).artifacts?.[0]?.parts).toEqual([{ text: "First answer" }])
+      expect((yield* settled(second.id)).artifacts?.[0]?.parts).toEqual([{ text: "Second answer" }])
     }),
   20_000,
 )

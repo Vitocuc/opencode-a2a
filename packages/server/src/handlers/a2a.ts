@@ -170,6 +170,8 @@ export const makeA2A = Effect.gen(function* () {
           sessionID: session.id,
           id: messageID,
           ...prompt(message),
+          // Queue rather than steer: a task sent while another runs waits for it, so each task gets its own answer.
+          delivery: "queue",
           metadata: { a2a: { messageId: message.messageId } },
         })
         .pipe(Effect.mapError(internal))
@@ -402,6 +404,7 @@ export const makeA2A = Effect.gen(function* () {
           | SessionEvent.Execution.Succeeded
           | SessionEvent.Execution.Failed
           | SessionEvent.Execution.Interrupted
+          | SessionEvent.InboxDelivered
         >()
         yield* bus
           .subscribe([
@@ -409,6 +412,8 @@ export const makeA2A = Effect.gen(function* () {
             SessionEvent.Execution.Succeeded,
             SessionEvent.Execution.Failed,
             SessionEvent.Execution.Interrupted,
+            // A queued prompt's delivery ends this task's turn within the same execution.
+            SessionEvent.InboxDelivered,
           ])
           .pipe(
             Stream.filter((event) => event.data.sessionID === ref.sessionID),
@@ -450,8 +455,9 @@ const responseArtifact = (id: string, text: string): A2ACodec.Artifact => ({
 })
 
 /**
- * A delivered prompt as a task. `after` is the Session history that follows it; the first `idle` marker ends its
- * turn and dates its terminal status.
+ * A delivered prompt as a task. `after` is the Session history that follows it. The first `idle` marker ends its
+ * turn and dates its terminal status, and so does the next user prompt: a queued prompt is delivered in the same
+ * execution once this turn ends, without an `idle` marker in between.
  */
 function fromHistory(
   ref: TaskRef,
@@ -460,11 +466,15 @@ function fromHistory(
   historyLength?: number,
 ): A2ACodec.Task {
   const id = taskID(ref)
-  const idle = after.find((message): message is SessionMessage.Idle => message.type === "idle")
-  const turn = idle ? after.slice(0, after.indexOf(idle)) : after
+  const end = after.findIndex((message) => message.type === "idle" || message.type === "user")
+  const boundary = end === -1 ? undefined : after[end]
+  const idle = boundary?.type === "idle" ? boundary : undefined
+  const turn = boundary ? after.slice(0, end) : after
   const state: A2ACodec.State = idle
     ? ({ succeeded: "completed", failed: "failed", interrupted: "canceled" } as const)[idle.outcome]
-    : "working"
+    : boundary
+      ? "completed"
+      : "working"
   const answer = turn
     .filter((message) => message.type === "assistant")
     .map((message) => message.content.flatMap((content) => (content.type === "text" ? [content.text] : [])).join(""))
@@ -495,7 +505,7 @@ function fromHistory(
     status: {
       state,
       message: A2ACodec.isTerminal(state) ? agentMessage : undefined,
-      timestamp: DateTime.formatIso(idle ? idle.time.created : user.time.created),
+      timestamp: DateTime.formatIso(boundary ? boundary.time.created : user.time.created),
     },
     artifacts: answer ? [responseArtifact(id, answer)] : [],
     history: historyLength === undefined ? history : historyLength <= 0 ? undefined : history.slice(-historyLength),
