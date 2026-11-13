@@ -445,8 +445,9 @@ it.live(
       const get = (id: string) =>
         rpc("GetTask", { id }).pipe(
           Effect.map(
-            (body: { result: { status: { state: string }; artifacts?: { parts: { text?: string }[] }[] } }) =>
-              body.result,
+            (body: {
+              result: { status: { state: string; message?: unknown }; artifacts?: { parts: { text?: string }[] }[] }
+            }) => body.result,
           ),
         )
       const settled = (id: string) =>
@@ -486,7 +487,10 @@ it.live(
         statusUpdate: { status: { state: "TASK_STATE_COMPLETED" } },
       })
 
-      expect((yield* settled(first.id)).artifacts?.[0]?.parts).toEqual([{ text: "First answer" }])
+      const done = yield* settled(first.id)
+      expect(done.artifacts?.[0]?.parts).toEqual([{ text: "First answer" }])
+      // The answer lives in the artifact only, so clients that join the parts don't show it twice.
+      expect(done.status.message).toBeUndefined()
       expect((yield* settled(second.id)).artifacts?.[0]?.parts).toEqual([{ text: "Second answer" }])
     }),
   20_000,

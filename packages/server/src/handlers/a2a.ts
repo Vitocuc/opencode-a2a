@@ -504,7 +504,8 @@ function fromHistory(
     contextId: ref.sessionID,
     status: {
       state,
-      message: A2ACodec.isTerminal(state) ? agentMessage : undefined,
+      // A completed task's answer is its artifact; the status message carries only failure and cancel reasons.
+      message: A2ACodec.isTerminal(state) && state !== "completed" ? agentMessage : undefined,
       timestamp: DateTime.formatIso(boundary ? boundary.time.created : user.time.created),
     },
     artifacts: answer ? [responseArtifact(id, answer)] : [],
