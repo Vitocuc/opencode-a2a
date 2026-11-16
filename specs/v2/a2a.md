@@ -176,6 +176,21 @@ A completed task's answer is only in the artifact. It is not repeated in `status
 
 OpenCode never reports `rejected` or `auth-required`.
 
+### SendMessage or SendStreamingMessage
+
+Both methods admit the message the same way and start the same task. They differ in how the result comes back.
+
+|                    | `SendMessage`                                              | `SendStreamingMessage`                                         |
+| ------------------ | ---------------------------------------------------------- | -------------------------------------------------------------- |
+| 0.3 method name    | `message/send`                                             | `message/stream`                                               |
+| HTTP response      | One JSON-RPC response                                      | A `text/event-stream` of JSON-RPC responses with the same `id` |
+| What comes back    | The task once, when it is terminal or `input-required`     | The task first, then artifact chunks and a status update       |
+| Partial text       | No, the answer arrives whole                               | Yes, one chunk per finished stretch of text                    |
+| Answer text        | The last assistant message's text                          | All the text the turn wrote                                    |
+| Return before done | `returnImmediately: true` (1.0) or `blocking: false` (0.3) | Not needed: the stream reports progress as it goes             |
+
+A blocking `SendMessage` also waits for the end; it is silent until then. Streaming suits a client that shows progress, such as a chat UI. Either way, a task that needs input ends the call, and the client answers it with a new message on the same `taskId`. `SubscribeToTask` is the stream without a new message: it follows a task that already runs.
+
 ### SendMessage: a new task
 
 ```json
@@ -461,6 +476,7 @@ Accept: application/json
 }
 ```
 
+- **Why not streaming:** the model gets one result per tool call, so streamed chunks would not reach it any sooner. Polling also covers remote servers that answer before the task ends despite the blocking flag.
 - **The request:** one text part, with `contextId` and `taskId` only when the model passed them. A 0.3 remote gets `message/send` with `blocking: true` and no `A2A-Version` header.
 - **The result:**
   - a message counts as a completed answer;
