@@ -1,0 +1,223 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 882" width="960" height="882" role="img" aria-labelledby="t d">
+  <title id="t">OpenCode's a2a tool calling a remote agent</title>
+  <desc id="d">The model calls the a2a tool, which reads the remote card once, sends a blocking SendMessage, and polls GetTask until the task settles.</desc>
+  <style>
+    svg{--bg:#ffffff;--text:#1f2328;--muted:#59636e;--line:#d1d9e0;--band:#f6f8fa;--client:#0969da;--server:#1a7f37;--core:#8250df;--bus:#bc4c00;--remote:#bf3989;--on:#ffffff}
+    @media (prefers-color-scheme:dark){svg{--bg:#0d1117;--text:#e6edf3;--muted:#9198a1;--line:#3d444d;--band:#151b23;--client:#4493f8;--server:#3fb950;--core:#ab7df8;--bus:#f0883e;--remote:#f778ba;--on:#0d1117}}
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .bg{fill:var(--bg)}
+    .box{fill:var(--bg);stroke-width:1.5}
+    .title{font-size:14px;font-weight:600}
+    .sub{font-size:11px;fill:var(--muted)}
+    .band{fill:var(--band)}
+    .phase{font-size:12px;font-weight:600;fill:var(--muted)}
+    .life{stroke:var(--line);stroke-width:1.5;stroke-dasharray:4 4}
+    .open{fill-opacity:.16}
+    .msg{stroke-width:1.75;fill:none}
+    .pname{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700}
+    .cap{font-size:11.5px;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+    .note{fill:var(--bg);stroke-width:1.2;stroke-dasharray:3 2}
+    .ntext,.ptext{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px}
+    .ptext{font-size:11px;font-weight:600;fill:var(--on)}
+    .pkt{opacity:0}
+    .legend{font-size:11px;fill:var(--muted)}
+    @keyframes d1{0%,1.72%{stroke-dashoffset:240;opacity:1}6.03%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f1{0%,1.72%{transform:translateX(0);opacity:0}2.07%{opacity:1}5.82%{opacity:1}6.03%{transform:translateX(240px);opacity:1}7.33%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c1{0%,5.39%{opacity:0}6.68%,96%{opacity:1}100%{opacity:0}}
+    @keyframes n2{0%,7.33%{opacity:0}8.62%,96%{opacity:1}100%{opacity:0}}
+    @keyframes n3{0%,12.07%{opacity:0}13.36%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d4{0%,16.81%{stroke-dashoffset:240;opacity:1}21.12%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f4{0%,16.81%{transform:translateX(0);opacity:0}17.16%{opacity:1}20.91%{opacity:1}21.12%{transform:translateX(240px);opacity:1}22.41%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c4{0%,20.47%{opacity:0}21.77%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d5{0%,22.41%{stroke-dashoffset:240;opacity:1}26.72%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f5{0%,22.41%{transform:translateX(0);opacity:0}22.76%{opacity:1}26.51%{opacity:1}26.72%{transform:translateX(240px);opacity:1}28.02%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c5{0%,26.08%{opacity:0}27.37%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d6{0%,28.02%{stroke-dashoffset:240;opacity:1}32.33%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f6{0%,28.02%{transform:translateX(0);opacity:0}28.36%{opacity:1}32.11%{opacity:1}32.33%{transform:translateX(-240px);opacity:1}33.62%,100%{transform:translateX(-240px);opacity:0}}
+    @keyframes c6{0%,31.68%{opacity:0}32.97%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d8{0%,33.62%{stroke-dashoffset:240;opacity:1}37.93%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f8{0%,33.62%{transform:translateX(0);opacity:0}33.97%{opacity:1}37.72%{opacity:1}37.93%{transform:translateX(240px);opacity:1}39.22%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c8{0%,37.28%{opacity:0}38.58%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d9{0%,39.22%{stroke-dashoffset:240;opacity:1}43.53%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f9{0%,39.22%{transform:translateX(0);opacity:0}39.57%{opacity:1}43.32%{opacity:1}43.53%{transform:translateX(240px);opacity:1}44.83%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c9{0%,42.89%{opacity:0}44.18%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d10{0%,44.83%{stroke-dashoffset:240;opacity:1}49.14%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f10{0%,44.83%{transform:translateX(0);opacity:0}45.17%{opacity:1}48.92%{opacity:1}49.14%{transform:translateX(-240px);opacity:1}50.43%,100%{transform:translateX(-240px);opacity:0}}
+    @keyframes c10{0%,48.49%{opacity:0}49.78%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d11{0%,50.43%{stroke-dashoffset:240;opacity:1}54.74%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f11{0%,50.43%{transform:translateX(0);opacity:0}50.78%{opacity:1}54.53%{opacity:1}54.74%{transform:translateX(240px);opacity:1}56.03%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c11{0%,54.09%{opacity:0}55.39%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d12{0%,56.03%{stroke-dashoffset:240;opacity:1}60.34%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f12{0%,56.03%{transform:translateX(0);opacity:0}56.38%{opacity:1}60.13%{opacity:1}60.34%{transform:translateX(-240px);opacity:1}61.64%,100%{transform:translateX(-240px);opacity:0}}
+    @keyframes c12{0%,59.70%{opacity:0}60.99%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d13{0%,61.64%{stroke-dashoffset:240;opacity:1}65.95%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f13{0%,61.64%{transform:translateX(0);opacity:0}61.98%{opacity:1}65.73%{opacity:1}65.95%{transform:translateX(240px);opacity:1}67.24%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c13{0%,65.30%{opacity:0}66.59%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d14{0%,67.24%{stroke-dashoffset:240;opacity:1}71.55%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f14{0%,67.24%{transform:translateX(0);opacity:0}67.59%{opacity:1}71.34%{opacity:1}71.55%{transform:translateX(-240px);opacity:1}72.84%,100%{transform:translateX(-240px);opacity:0}}
+    @keyframes c14{0%,70.91%{opacity:0}72.20%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d15{0%,72.84%{stroke-dashoffset:240;opacity:1}77.16%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f15{0%,72.84%{transform:translateX(0);opacity:0}73.19%{opacity:1}76.94%{opacity:1}77.16%{transform:translateX(-240px);opacity:1}78.45%,100%{transform:translateX(-240px);opacity:0}}
+    @keyframes c15{0%,76.51%{opacity:0}77.80%,96%{opacity:1}100%{opacity:0}}
+    @keyframes n16{0%,78.45%{opacity:0}79.74%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d17{0%,83.19%{stroke-dashoffset:240;opacity:1}87.50%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f17{0%,83.19%{transform:translateX(0);opacity:0}83.53%{opacity:1}87.28%{opacity:1}87.50%{transform:translateX(-240px);opacity:1}88.79%,100%{transform:translateX(-240px);opacity:0}}
+    @keyframes c17{0%,86.85%{opacity:0}88.15%,96%{opacity:1}100%{opacity:0}}
+    @keyframes b0{0%,1.72%{opacity:0}3.02%,96%{opacity:1}100%{opacity:0}}
+    @keyframes b1{0%,39.22%{opacity:0}40.52%,96%{opacity:1}100%{opacity:0}}
+    @media (prefers-reduced-motion:reduce){.anim{animation:none!important}.pkt{display:none}}
+  </style>
+  <rect width="960" height="882" class="bg"/>
+  <rect x="12" y="18" width="216" height="50" rx="8" class="box" style="stroke:var(--core)"/>
+  <text x="120" y="39" class="title" text-anchor="middle">Model</text>
+  <text x="120" y="57" class="sub" text-anchor="middle">the LLM in your Session</text>
+  <rect x="252" y="18" width="216" height="50" rx="8" class="box" style="stroke:var(--server)"/>
+  <text x="360" y="39" class="title" text-anchor="middle">a2a tool</text>
+  <text x="360" y="57" class="sub" text-anchor="middle">core/tool/plugin/a2a.ts</text>
+  <rect x="492" y="18" width="216" height="50" rx="8" class="box" style="stroke:var(--client)"/>
+  <text x="600" y="39" class="title" text-anchor="middle">A2AClient</text>
+  <text x="600" y="57" class="sub" text-anchor="middle">core/a2a/client.ts</text>
+  <rect x="732" y="18" width="216" height="50" rx="8" class="box" style="stroke:var(--remote)"/>
+  <text x="840" y="39" class="title" text-anchor="middle">Remote agent</text>
+  <text x="840" y="57" class="sub" text-anchor="middle">any A2A server, or another OpenCode</text>
+  <line x1="120" y1="68" x2="120" y2="836" class="life"/>
+  <line x1="360" y1="68" x2="360" y2="836" class="life"/>
+  <line x1="600" y1="68" x2="600" y2="836" class="life"/>
+  <line x1="840" y1="68" x2="840" y2="836" class="life"/>
+  <rect x="114" y="150" width="12" height="666" rx="3" class="open anim" style="fill:var(--core);animation:b0 23.20s linear infinite"/>
+  <rect x="594" y="472" width="12" height="226" rx="3" class="open anim" style="fill:var(--client);animation:b1 23.20s linear infinite"/>
+  <rect x="16" y="96" width="928" height="24" rx="5" class="band"/>
+  <text x="28" y="112" class="phase">C3 · The tool call and the remote card</text>
+  <line x1="120" y1="158" x2="353" y2="158" class="msg anim" style="stroke:var(--core);stroke-dasharray:240;animation:d1 23.20s linear infinite"/>
+  <g class="anim" style="animation:c1 23.20s linear infinite">
+    <polygon points="360,158 351,153 351,163" style="fill:var(--core)"/>
+    <text x="240" y="151" class="cap" text-anchor="middle"><tspan class="pname">a2a(…)</tspan><tspan dx="8">tool call { agent: "python", message, contextId? }</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f1 23.20s linear infinite">
+    <rect x="90" y="148" width="60" height="20" rx="10" style="fill:var(--core)"/>
+    <text x="120" y="162" class="ptext" text-anchor="middle">a2a(…)</text>
+  </g>
+  <g class="anim" style="animation:n2 23.20s linear infinite">
+    <rect x="176.2" y="183" width="367.6" height="22" rx="5" class="note" style="stroke:var(--server)"/>
+    <text x="360" y="198" class="ntext" text-anchor="middle">configured(): the agent from a2a.agents, else an error</text>
+  </g>
+  <g class="anim" style="animation:n3 23.20s linear infinite">
+    <rect x="169.79999999999998" y="217" width="380.40000000000003" height="22" rx="5" class="note" style="stroke:var(--server)"/>
+    <text x="360" y="232" class="ntext" text-anchor="middle">permission.assert({ action: "a2a", resources: [agent] })</text>
+  </g>
+  <line x1="360" y1="268" x2="593" y2="268" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d4 23.20s linear infinite"/>
+  <g class="anim" style="animation:c4 23.20s linear infinite">
+    <polygon points="600,268 591,263 591,273" style="fill:var(--server)"/>
+    <text x="480" y="261" class="cap" text-anchor="middle"><tspan class="pname">discover</tspan><tspan dx="8">only the first time for this URL (kept in targets)</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f4 23.20s linear infinite">
+    <rect x="323" y="258" width="74" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="272" class="ptext" text-anchor="middle">discover</text>
+  </g>
+  <line x1="600" y1="310" x2="833" y2="310" class="msg anim" style="stroke:var(--client);stroke-dasharray:240;animation:d5 23.20s linear infinite"/>
+  <g class="anim" style="animation:c5 23.20s linear infinite">
+    <polygon points="840,310 831,305 831,315" style="fill:var(--client)"/>
+    <text x="706.6" y="303" class="cap" text-anchor="middle"><tspan class="pname">GET card</tspan><tspan dx="8">base URL → /.well-known/agent-card.json · A2A-Version: 1.0 + headers</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f5 23.20s linear infinite">
+    <rect x="563" y="300" width="74" height="20" rx="10" style="fill:var(--client)"/>
+    <text x="600" y="314" class="ptext" text-anchor="middle">GET card</text>
+  </g>
+  <line x1="840" y1="352" x2="607" y2="352" class="msg anim" style="stroke:var(--remote);stroke-dasharray:240;animation:d6 23.20s linear infinite"/>
+  <g class="anim" style="animation:c6 23.20s linear infinite">
+    <polygon points="600,352 609,347 609,357" style="fill:var(--remote)"/>
+    <text x="720" y="345" class="cap" text-anchor="middle"><tspan class="pname">card</tspan><tspan dx="8">≤ 5 MB · endpoint(): prefer a non-0.x JSON-RPC interface</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f6 23.20s linear infinite">
+    <rect x="817" y="342" width="46" height="20" rx="10" style="fill:var(--remote)"/>
+    <text x="840" y="356" class="ptext" text-anchor="middle">card</text>
+  </g>
+  <rect x="16" y="376" width="928" height="24" rx="5" class="band"/>
+  <text x="28" y="392" class="phase">C4 · SendMessage, then GetTask every 2 s</text>
+  <line x1="360" y1="438" x2="593" y2="438" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d8 23.20s linear infinite"/>
+  <g class="anim" style="animation:c8 23.20s linear infinite">
+    <polygon points="600,438 591,433 591,443" style="fill:var(--server)"/>
+    <text x="480" y="431" class="cap" text-anchor="middle"><tspan class="pname">send</tspan><tspan dx="8">A2AClient.send(target, { text, contextId?, taskId? })</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f8 23.20s linear infinite">
+    <rect x="337" y="428" width="46" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="442" class="ptext" text-anchor="middle">send</text>
+  </g>
+  <line x1="600" y1="480" x2="833" y2="480" class="msg anim" style="stroke:var(--client);stroke-dasharray:240;animation:d9 23.20s linear infinite"/>
+  <g class="anim" style="animation:c9 23.20s linear infinite">
+    <polygon points="840,480 831,475 831,485" style="fill:var(--client)"/>
+    <text x="720" y="473" class="cap" text-anchor="middle"><tspan class="pname">SendMessage</tspan><tspan dx="8">returnImmediately: false (0.3: message/send, blocking: true)</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f9 23.20s linear infinite">
+    <rect x="552.5" y="470" width="95" height="20" rx="10" style="fill:var(--client)"/>
+    <text x="600" y="484" class="ptext" text-anchor="middle">SendMessage</text>
+  </g>
+  <line x1="840" y1="522" x2="607" y2="522" class="msg anim" style="stroke:var(--remote);stroke-dasharray:240;animation:d10 23.20s linear infinite"/>
+  <g class="anim" style="animation:c10 23.20s linear infinite">
+    <polygon points="600,522 609,517 609,527" style="fill:var(--remote)"/>
+    <text x="720" y="515" class="cap" text-anchor="middle"><tspan class="pname">task</tspan><tspan dx="8">WORKING: this remote answered before the task settled</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f10 23.20s linear infinite">
+    <rect x="817" y="512" width="46" height="20" rx="10" style="fill:var(--remote)"/>
+    <text x="840" y="526" class="ptext" text-anchor="middle">task</text>
+  </g>
+  <line x1="600" y1="564" x2="833" y2="564" class="msg anim" style="stroke:var(--client);stroke-dasharray:240;animation:d11 23.20s linear infinite"/>
+  <g class="anim" style="animation:c11 23.20s linear infinite">
+    <polygon points="840,564 831,559 831,569" style="fill:var(--client)"/>
+    <text x="720" y="557" class="cap" text-anchor="middle"><tspan class="pname">GetTask</tspan><tspan dx="8">Schedule.spaced("2 seconds") until settled()</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f11 23.20s linear infinite">
+    <rect x="566.5" y="554" width="67" height="20" rx="10" style="fill:var(--client)"/>
+    <text x="600" y="568" class="ptext" text-anchor="middle">GetTask</text>
+  </g>
+  <line x1="840" y1="606" x2="607" y2="606" class="msg anim" style="stroke:var(--remote);stroke-dasharray:240;animation:d12 23.20s linear infinite"/>
+  <g class="anim" style="animation:c12 23.20s linear infinite">
+    <polygon points="600,606 609,601 609,611" style="fill:var(--remote)"/>
+    <text x="720" y="599" class="cap" text-anchor="middle"><tspan class="pname">task</tspan><tspan dx="8">WORKING</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f12 23.20s linear infinite">
+    <rect x="817" y="596" width="46" height="20" rx="10" style="fill:var(--remote)"/>
+    <text x="840" y="610" class="ptext" text-anchor="middle">task</text>
+  </g>
+  <line x1="600" y1="648" x2="833" y2="648" class="msg anim" style="stroke:var(--client);stroke-dasharray:240;animation:d13 23.20s linear infinite"/>
+  <g class="anim" style="animation:c13 23.20s linear infinite">
+    <polygon points="840,648 831,643 831,653" style="fill:var(--client)"/>
+    <text x="720" y="641" class="cap" text-anchor="middle"><tspan class="pname">GetTask</tspan><tspan dx="8">{ id }</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f13 23.20s linear infinite">
+    <rect x="566.5" y="638" width="67" height="20" rx="10" style="fill:var(--client)"/>
+    <text x="600" y="652" class="ptext" text-anchor="middle">GetTask</text>
+  </g>
+  <line x1="840" y1="690" x2="607" y2="690" class="msg anim" style="stroke:var(--remote);stroke-dasharray:240;animation:d14 23.20s linear infinite"/>
+  <g class="anim" style="animation:c14 23.20s linear infinite">
+    <polygon points="600,690 609,685 609,695" style="fill:var(--remote)"/>
+    <text x="720" y="683" class="cap" text-anchor="middle"><tspan class="pname">task</tspan><tspan dx="8">COMPLETED · artifacts</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f14 23.20s linear infinite">
+    <rect x="817" y="680" width="46" height="20" rx="10" style="fill:var(--remote)"/>
+    <text x="840" y="694" class="ptext" text-anchor="middle">task</text>
+  </g>
+  <line x1="600" y1="732" x2="367" y2="732" class="msg anim" style="stroke:var(--client);stroke-dasharray:240;animation:d15 23.20s linear infinite"/>
+  <g class="anim" style="animation:c15 23.20s linear infinite">
+    <polygon points="360,732 369,727 369,737" style="fill:var(--client)"/>
+    <text x="480" y="725" class="cap" text-anchor="middle"><tspan class="pname">Task</tspan><tspan dx="8">a terminal or input-required Task, or a reply Message</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f15 23.20s linear infinite">
+    <rect x="577" y="722" width="46" height="20" rx="10" style="fill:var(--client)"/>
+    <text x="600" y="736" class="ptext" text-anchor="middle">Task</text>
+  </g>
+  <g class="anim" style="animation:n16 23.20s linear infinite">
+    <rect x="214.6" y="757" width="290.8" height="22" rx="5" class="note" style="stroke:var(--server)"/>
+    <text x="360" y="772" class="ntext" text-anchor="middle">view() + summary(): name, state, ids, text</text>
+  </g>
+  <line x1="360" y1="808" x2="127" y2="808" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d17 23.20s linear infinite"/>
+  <g class="anim" style="animation:c17 23.20s linear infinite">
+    <polygon points="120,808 129,803 129,813" style="fill:var(--server)"/>
+    <text x="240" y="801" class="cap" text-anchor="middle"><tspan class="pname">result</tspan><tspan dx="8">python (completed; contextId: …, taskId: …) + the text</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f17 23.20s linear infinite">
+    <rect x="330" y="798" width="60" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="812" class="ptext" text-anchor="middle">result</text>
+  </g>
+  <text x="16" y="862" class="legend">Shaded bar: a request still open (client side) or a wait on Bus events (handler side). Pills are messages; boxes are steps inside one component.</text>
+</svg>

@@ -1,0 +1,234 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 890" width="960" height="890" role="img" aria-labelledby="t d">
+  <title id="t">A task that needs input</title>
+  <desc id="d">The agent asks for a permission, the task reports input-required, and the client answers on the same taskId.</desc>
+  <style>
+    svg{--bg:#ffffff;--text:#1f2328;--muted:#59636e;--line:#d1d9e0;--band:#f6f8fa;--client:#0969da;--server:#1a7f37;--core:#8250df;--bus:#bc4c00;--remote:#bf3989;--on:#ffffff}
+    @media (prefers-color-scheme:dark){svg{--bg:#0d1117;--text:#e6edf3;--muted:#9198a1;--line:#3d444d;--band:#151b23;--client:#4493f8;--server:#3fb950;--core:#ab7df8;--bus:#f0883e;--remote:#f778ba;--on:#0d1117}}
+    text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;fill:var(--text)}
+    .bg{fill:var(--bg)}
+    .box{fill:var(--bg);stroke-width:1.5}
+    .title{font-size:14px;font-weight:600}
+    .sub{font-size:11px;fill:var(--muted)}
+    .band{fill:var(--band)}
+    .phase{font-size:12px;font-weight:600;fill:var(--muted)}
+    .life{stroke:var(--line);stroke-width:1.5;stroke-dasharray:4 4}
+    .open{fill-opacity:.16}
+    .msg{stroke-width:1.75;fill:none}
+    .pname{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:700}
+    .cap{font-size:11.5px;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+    .note{fill:var(--bg);stroke-width:1.2;stroke-dasharray:3 2}
+    .ntext,.ptext{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px}
+    .ptext{font-size:11px;font-weight:600;fill:var(--on)}
+    .pkt{opacity:0}
+    .legend{font-size:11px;fill:var(--muted)}
+    @keyframes d1{0%,1.71%{stroke-dashoffset:240;opacity:1}5.98%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f1{0%,1.71%{transform:translateX(0);opacity:0}2.05%{opacity:1}5.77%{opacity:1}5.98%{transform:translateX(240px);opacity:1}7.26%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c1{0%,5.34%{opacity:0}6.62%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d2{0%,7.26%{stroke-dashoffset:240;opacity:1}11.54%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f2{0%,7.26%{transform:translateX(0);opacity:0}7.61%{opacity:1}11.32%{opacity:1}11.54%{transform:translateX(240px);opacity:1}12.82%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c2{0%,10.90%{opacity:0}12.18%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d3{0%,12.82%{stroke-dashoffset:240;opacity:1}17.09%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f3{0%,12.82%{transform:translateX(0);opacity:0}13.16%{opacity:1}16.88%{opacity:1}17.09%{transform:translateX(240px);opacity:1}18.38%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c3{0%,16.45%{opacity:0}17.74%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d4{0%,18.38%{stroke-dashoffset:480;opacity:1}22.65%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f4{0%,18.38%{transform:translateX(0);opacity:0}18.72%{opacity:1}22.44%{opacity:1}22.65%{transform:translateX(480px);opacity:1}23.93%,100%{transform:translateX(480px);opacity:0}}
+    @keyframes c4{0%,22.01%{opacity:0}23.29%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d5{0%,23.93%{stroke-dashoffset:240;opacity:1}28.21%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f5{0%,23.93%{transform:translateX(0);opacity:0}24.27%{opacity:1}27.99%{opacity:1}28.21%{transform:translateX(240px);opacity:1}29.49%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c5{0%,27.56%{opacity:0}28.85%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d6{0%,29.49%{stroke-dashoffset:240;opacity:1}33.76%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f6{0%,29.49%{transform:translateX(0);opacity:0}29.83%{opacity:1}33.55%{opacity:1}33.76%{transform:translateX(240px);opacity:1}35.04%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c6{0%,33.12%{opacity:0}34.40%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d7{0%,35.04%{stroke-dashoffset:480;opacity:1}39.32%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f7{0%,35.04%{transform:translateX(0);opacity:0}35.38%{opacity:1}39.10%{opacity:1}39.32%{transform:translateX(-480px);opacity:1}40.60%,100%{transform:translateX(-480px);opacity:0}}
+    @keyframes c7{0%,38.68%{opacity:0}39.96%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d8{0%,40.60%{stroke-dashoffset:240;opacity:1}44.87%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f8{0%,40.60%{transform:translateX(0);opacity:0}40.94%{opacity:1}44.66%{opacity:1}44.87%{transform:translateX(-240px);opacity:1}46.15%,100%{transform:translateX(-240px);opacity:0}}
+    @keyframes c8{0%,44.23%{opacity:0}45.51%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d10{0%,46.15%{stroke-dashoffset:240;opacity:1}50.43%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f10{0%,46.15%{transform:translateX(0);opacity:0}46.50%{opacity:1}50.21%{opacity:1}50.43%{transform:translateX(240px);opacity:1}51.71%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c10{0%,49.79%{opacity:0}51.07%,96%{opacity:1}100%{opacity:0}}
+    @keyframes n11{0%,51.71%{opacity:0}52.99%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d12{0%,56.41%{stroke-dashoffset:240;opacity:1}60.68%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f12{0%,56.41%{transform:translateX(0);opacity:0}56.75%{opacity:1}60.47%{opacity:1}60.68%{transform:translateX(240px);opacity:1}61.97%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c12{0%,60.04%{opacity:0}61.32%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d13{0%,61.97%{stroke-dashoffset:480;opacity:1}66.24%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f13{0%,61.97%{transform:translateX(0);opacity:0}62.31%{opacity:1}66.03%{opacity:1}66.24%{transform:translateX(480px);opacity:1}67.52%,100%{transform:translateX(480px);opacity:0}}
+    @keyframes c13{0%,65.60%{opacity:0}66.88%,96%{opacity:1}100%{opacity:0}}
+    @keyframes n14{0%,67.52%{opacity:0}68.80%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d15{0%,72.22%{stroke-dashoffset:240;opacity:1}76.50%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f15{0%,72.22%{transform:translateX(0);opacity:0}72.56%{opacity:1}76.28%{opacity:1}76.50%{transform:translateX(240px);opacity:1}77.78%,100%{transform:translateX(240px);opacity:0}}
+    @keyframes c15{0%,75.85%{opacity:0}77.14%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d16{0%,77.78%{stroke-dashoffset:480;opacity:1}82.05%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f16{0%,77.78%{transform:translateX(0);opacity:0}78.12%{opacity:1}81.84%{opacity:1}82.05%{transform:translateX(-480px);opacity:1}83.33%,100%{transform:translateX(-480px);opacity:0}}
+    @keyframes c16{0%,81.41%{opacity:0}82.69%,96%{opacity:1}100%{opacity:0}}
+    @keyframes d17{0%,83.33%{stroke-dashoffset:240;opacity:1}87.61%,96%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:0;opacity:0}}
+    @keyframes f17{0%,83.33%{transform:translateX(0);opacity:0}83.68%{opacity:1}87.39%{opacity:1}87.61%{transform:translateX(-240px);opacity:1}88.89%,100%{transform:translateX(-240px);opacity:0}}
+    @keyframes c17{0%,86.97%{opacity:0}88.25%,96%{opacity:1}100%{opacity:0}}
+    @keyframes b0{0%,1.71%{opacity:0}2.99%,96%{opacity:1}100%{opacity:0}}
+    @keyframes b1{0%,18.38%{opacity:0}19.66%,96%{opacity:1}100%{opacity:0}}
+    @keyframes b2{0%,46.15%{opacity:0}47.44%,96%{opacity:1}100%{opacity:0}}
+    @keyframes b3{0%,61.97%{opacity:0}63.25%,96%{opacity:1}100%{opacity:0}}
+    @media (prefers-reduced-motion:reduce){.anim{animation:none!important}.pkt{display:none}}
+  </style>
+  <rect width="960" height="890" class="bg"/>
+  <rect x="12" y="18" width="216" height="50" rx="8" class="box" style="stroke:var(--client)"/>
+  <text x="120" y="39" class="title" text-anchor="middle">A2A client</text>
+  <text x="120" y="57" class="sub" text-anchor="middle">an a2a-sdk app, or OpenCode's a2a tool</text>
+  <rect x="252" y="18" width="216" height="50" rx="8" class="box" style="stroke:var(--server)"/>
+  <text x="360" y="39" class="title" text-anchor="middle">A2A handler</text>
+  <text x="360" y="57" class="sub" text-anchor="middle">server/src/handlers/a2a.ts</text>
+  <rect x="492" y="18" width="216" height="50" rx="8" class="box" style="stroke:var(--core)"/>
+  <text x="600" y="39" class="title" text-anchor="middle">Session runtime</text>
+  <text x="600" y="57" class="sub" text-anchor="middle">core: Session, Permission, Form</text>
+  <rect x="732" y="18" width="216" height="50" rx="8" class="box" style="stroke:var(--bus)"/>
+  <text x="840" y="39" class="title" text-anchor="middle">Bus</text>
+  <text x="840" y="57" class="sub" text-anchor="middle">live Session and permission events</text>
+  <line x1="120" y1="68" x2="120" y2="844" class="life"/>
+  <line x1="360" y1="68" x2="360" y2="844" class="life"/>
+  <line x1="600" y1="68" x2="600" y2="844" class="life"/>
+  <line x1="840" y1="68" x2="840" y2="844" class="life"/>
+  <rect x="114" y="150" width="12" height="310" rx="3" class="open anim" style="fill:var(--client);animation:b0 23.40s linear infinite"/>
+  <rect x="354" y="276" width="12" height="142" rx="3" class="open anim" style="fill:var(--server);animation:b1 23.40s linear infinite"/>
+  <rect x="114" y="530" width="12" height="294" rx="3" class="open anim" style="fill:var(--client);animation:b2 23.40s linear infinite"/>
+  <rect x="354" y="648" width="12" height="134" rx="3" class="open anim" style="fill:var(--server);animation:b3 23.40s linear infinite"/>
+  <rect x="16" y="96" width="928" height="24" rx="5" class="band"/>
+  <text x="28" y="112" class="phase">C2 · SendMessage that runs into a permission prompt</text>
+  <line x1="120" y1="158" x2="353" y2="158" class="msg anim" style="stroke:var(--client);stroke-dasharray:240;animation:d1 23.40s linear infinite"/>
+  <g class="anim" style="animation:c1 23.40s linear infinite">
+    <polygon points="360,158 351,153 351,163" style="fill:var(--client)"/>
+    <text x="240" y="151" class="cap" text-anchor="middle"><tspan class="pname">SendMessage</tspan><tspan dx="8">message “Run echo hi” · contextId: ses_…</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f1 23.40s linear infinite">
+    <rect x="72.5" y="148" width="95" height="20" rx="10" style="fill:var(--client)"/>
+    <text x="120" y="162" class="ptext" text-anchor="middle">SendMessage</text>
+  </g>
+  <line x1="360" y1="200" x2="593" y2="200" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d2 23.40s linear infinite"/>
+  <g class="anim" style="animation:c2 23.40s linear infinite">
+    <polygon points="600,200 591,195 591,205" style="fill:var(--server)"/>
+    <text x="480" y="193" class="cap" text-anchor="middle"><tspan class="pname">get</tspan><tspan dx="8">sessions.get(contextId), unknown → -32602</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f2 23.40s linear infinite">
+    <rect x="340.5" y="190" width="39" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="204" class="ptext" text-anchor="middle">get</text>
+  </g>
+  <line x1="360" y1="242" x2="593" y2="242" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d3 23.40s linear infinite"/>
+  <g class="anim" style="animation:c3 23.40s linear infinite">
+    <polygon points="600,242 591,237 591,247" style="fill:var(--server)"/>
+    <text x="480" y="235" class="cap" text-anchor="middle"><tspan class="pname">prompt</tspan><tspan dx="8">sessions.prompt({ delivery: "queue" })</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f3 23.40s linear infinite">
+    <rect x="330" y="232" width="60" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="246" class="ptext" text-anchor="middle">prompt</text>
+  </g>
+  <line x1="360" y1="284" x2="833" y2="284" class="msg anim" style="stroke:var(--server);stroke-dasharray:480;animation:d4 23.40s linear infinite"/>
+  <g class="anim" style="animation:c4 23.40s linear infinite">
+    <polygon points="840,284 831,279 831,289" style="fill:var(--server)"/>
+    <text x="600" y="277" class="cap" text-anchor="middle"><tspan class="pname">subscribe</tspan><tspan dx="8">settle(): subscribe(progress)</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f4 23.40s linear infinite">
+    <rect x="319.5" y="274" width="81" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="288" class="ptext" text-anchor="middle">subscribe</text>
+  </g>
+  <line x1="600" y1="326" x2="833" y2="326" class="msg anim" style="stroke:var(--core);stroke-dasharray:240;animation:d5 23.40s linear infinite"/>
+  <g class="anim" style="animation:c5 23.40s linear infinite">
+    <polygon points="840,326 831,321 831,331" style="fill:var(--core)"/>
+    <text x="720" y="319" class="cap" text-anchor="middle"><tspan class="pname">session.inbox.delivered</tspan><tspan dx="8">the prompt is delivered, the agent runs</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f5 23.40s linear infinite">
+    <rect x="510.5" y="316" width="179" height="20" rx="10" style="fill:var(--core)"/>
+    <text x="600" y="330" class="ptext" text-anchor="middle">session.inbox.delivered</text>
+  </g>
+  <line x1="600" y1="368" x2="833" y2="368" class="msg anim" style="stroke:var(--core);stroke-dasharray:240;animation:d6 23.40s linear infinite"/>
+  <g class="anim" style="animation:c6 23.40s linear infinite">
+    <polygon points="840,368 831,363 831,373" style="fill:var(--core)"/>
+    <text x="720" y="361" class="cap" text-anchor="middle"><tspan class="pname">permission.asked</tspan><tspan dx="8">the agent's shell call waits for a reply</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f6 23.40s linear infinite">
+    <rect x="535" y="358" width="130" height="20" rx="10" style="fill:var(--core)"/>
+    <text x="600" y="372" class="ptext" text-anchor="middle">permission.asked</text>
+  </g>
+  <line x1="840" y1="410" x2="367" y2="410" class="msg anim" style="stroke:var(--bus);stroke-dasharray:480;animation:d7 23.40s linear infinite"/>
+  <g class="anim" style="animation:c7 23.40s linear infinite">
+    <polygon points="360,410 369,405 369,415" style="fill:var(--bus)"/>
+    <text x="600" y="403" class="cap" text-anchor="middle"><tspan class="pname">wake</tspan><tspan dx="8">read(): working, and pending() finds the permission</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f7 23.40s linear infinite">
+    <rect x="817" y="400" width="46" height="20" rx="10" style="fill:var(--bus)"/>
+    <text x="840" y="414" class="ptext" text-anchor="middle">wake</text>
+  </g>
+  <line x1="360" y1="452" x2="127" y2="452" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d8 23.40s linear infinite"/>
+  <g class="anim" style="animation:c8 23.40s linear infinite">
+    <polygon points="120,452 129,447 129,457" style="fill:var(--server)"/>
+    <text x="240" y="445" class="cap" text-anchor="middle"><tspan class="pname">input-required</tspan><tspan dx="8">task INPUT_REQUIRED · status.message = the question</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f8 23.40s linear infinite">
+    <rect x="302" y="442" width="116" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="456" class="ptext" text-anchor="middle">input-required</text>
+  </g>
+  <rect x="16" y="476" width="928" height="24" rx="5" class="band"/>
+  <text x="28" y="492" class="phase">Answering on the same task</text>
+  <line x1="120" y1="538" x2="353" y2="538" class="msg anim" style="stroke:var(--client);stroke-dasharray:240;animation:d10 23.40s linear infinite"/>
+  <g class="anim" style="animation:c10 23.40s linear infinite">
+    <polygon points="360,538 351,533 351,543" style="fill:var(--client)"/>
+    <text x="240" y="531" class="cap" text-anchor="middle"><tspan class="pname">SendMessage</tspan><tspan dx="8">taskId: ses_…:msg_… · text “allow”</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f10 23.40s linear infinite">
+    <rect x="72.5" y="528" width="95" height="20" rx="10" style="fill:var(--client)"/>
+    <text x="120" y="542" class="ptext" text-anchor="middle">SendMessage</text>
+  </g>
+  <g class="anim" style="animation:n11 23.40s linear infinite">
+    <rect x="163.39999999999998" y="563" width="393.20000000000005" height="22" rx="5" class="note" style="stroke:var(--server)"/>
+    <text x="360" y="578" class="ntext" text-anchor="middle">answer(): read() → input-required · pending() → permission</text>
+  </g>
+  <line x1="360" y1="614" x2="593" y2="614" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d12 23.40s linear infinite"/>
+  <g class="anim" style="animation:c12 23.40s linear infinite">
+    <polygon points="600,614 591,609 591,619" style="fill:var(--server)"/>
+    <text x="480" y="607" class="cap" text-anchor="middle"><tspan class="pname">reply once</tspan><tspan dx="8">permission.reply({ reply: "once" }) · allow/always/deny → once/always/reject</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f12 23.40s linear infinite">
+    <rect x="316" y="604" width="88" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="618" class="ptext" text-anchor="middle">reply once</text>
+  </g>
+  <line x1="360" y1="656" x2="833" y2="656" class="msg anim" style="stroke:var(--server);stroke-dasharray:480;animation:d13 23.40s linear infinite"/>
+  <g class="anim" style="animation:c13 23.40s linear infinite">
+    <polygon points="840,656 831,651 831,661" style="fill:var(--server)"/>
+    <text x="600" y="649" class="cap" text-anchor="middle"><tspan class="pname">subscribe</tspan><tspan dx="8">settle() again, same taskId</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f13 23.40s linear infinite">
+    <rect x="319.5" y="646" width="81" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="660" class="ptext" text-anchor="middle">subscribe</text>
+  </g>
+  <g class="anim" style="animation:n14 23.40s linear infinite">
+    <rect x="470.6" y="681" width="258.8" height="22" rx="5" class="note" style="stroke:var(--core)"/>
+    <text x="600" y="696" class="ntext" text-anchor="middle">the shell tool runs, the turn goes on</text>
+  </g>
+  <line x1="600" y1="732" x2="833" y2="732" class="msg anim" style="stroke:var(--core);stroke-dasharray:240;animation:d15 23.40s linear infinite"/>
+  <g class="anim" style="animation:c15 23.40s linear infinite">
+    <polygon points="840,732 831,727 831,737" style="fill:var(--core)"/>
+    <text x="720" y="725" class="cap" text-anchor="middle"><tspan class="pname">session.execution.succeeded</tspan><tspan dx="8">the turn ends, the Session goes idle</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f15 23.40s linear infinite">
+    <rect x="496.5" y="722" width="207" height="20" rx="10" style="fill:var(--core)"/>
+    <text x="600" y="736" class="ptext" text-anchor="middle">session.execution.succeeded</text>
+  </g>
+  <line x1="840" y1="774" x2="367" y2="774" class="msg anim" style="stroke:var(--bus);stroke-dasharray:480;animation:d16 23.40s linear infinite"/>
+  <g class="anim" style="animation:c16 23.40s linear infinite">
+    <polygon points="360,774 369,769 369,779" style="fill:var(--bus)"/>
+    <text x="600" y="767" class="cap" text-anchor="middle"><tspan class="pname">wake</tspan><tspan dx="8">read() → completed</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f16 23.40s linear infinite">
+    <rect x="817" y="764" width="46" height="20" rx="10" style="fill:var(--bus)"/>
+    <text x="840" y="778" class="ptext" text-anchor="middle">wake</text>
+  </g>
+  <line x1="360" y1="816" x2="127" y2="816" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d17 23.40s linear infinite"/>
+  <g class="anim" style="animation:c17 23.40s linear infinite">
+    <polygon points="120,816 129,811 129,821" style="fill:var(--server)"/>
+    <text x="240" y="809" class="cap" text-anchor="middle"><tspan class="pname">{ task }</tspan><tspan dx="8">task COMPLETED, same taskId as before</tspan></text>
+  </g>
+  <g class="pkt anim" style="animation:f17 23.40s linear infinite">
+    <rect x="323" y="806" width="74" height="20" rx="10" style="fill:var(--server)"/>
+    <text x="360" y="820" class="ptext" text-anchor="middle">{ task }</text>
+  </g>
+  <text x="16" y="870" class="legend">Shaded bar: a request still open (client side) or a wait on Bus events (handler side). Pills are messages; boxes are steps inside one component.</text>
+</svg>

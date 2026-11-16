@@ -48,6 +48,8 @@ Tasks have no table of their own. A task is read back from Session history every
 
 The connection from your terminal to your own OpenCode server is the normal OpenCode API, not A2A.
 
+The sections below each have an animated diagram that follows the code. Columns are components and name their source file. A pill is a message or event, and the arrow it leaves keeps its name. A dashed box is a step inside one component. A shaded bar is a request still open, or the handler waiting on Bus events. The arrows to the Session runtime and the Bus never leave OpenCode: they show what makes the server answer.
+
 ## Rules for every request to OpenCode (C1 and C2)
 
 ### Turning it on
@@ -132,6 +134,8 @@ Authorization: Basic …
 - **The 0.3 card** has `protocolVersion: "0.3.0"`, `url` and `preferredTransport: "JSONRPC"`. It also lists both interfaces in `supportedInterfaces`, so a 1.x SDK that fetched it without the header still picks 1.0.
 - **Caching:** the answer has an `ETag`, `Cache-Control: private, max-age=300` and `Vary: A2A-Version, Authorization`. A matching `If-None-Match` gets 304.
 
+![Animated sequence: the client gets the card, OpenCode checks auth and the flag, lists agents as skills, and answers; a second request with If-None-Match gets 304](./a2a/card.svg)
+
 **There is no well-known card.** `/.well-known/agent-card.json` answers 404, because one server holds many Locations and the card is per Location. A client must be given the card URL above. (The CLI sends `/.well-known/*` to the API, so that 404 is a real 404 and not the web app's page.)
 
 ## C2: JSON-RPC
@@ -160,6 +164,8 @@ A task is **one prompt in one Session**. Its state is read from the Session hist
 | The next prompt was delivered before any idle point            | `completed`      |
 
 The last row exists because queued prompts are delivered one after the other in the same run, with no idle point in between.
+
+![Animated sequence: two non-blocking sends to one context; B waits in the inbox, A completes when B is delivered, and B completes when the Session goes idle](./a2a/queued.svg)
 
 A task carries:
 
@@ -227,6 +233,8 @@ What OpenCode does:
    - `configuration.returnImmediately: true` (1.0) or `blocking: false` (0.3) sends it straight away, usually as `submitted` or `working`.
 
 The wait is driven by Session events, not by polling. OpenCode re-reads the task whenever the Session finishes a run, delivers its next prompt, or asks a permission or question.
+
+![Animated sequence: SendMessage creates a Session, queues the prompt, subscribes to Bus progress events, re-reads the task on each event, and answers once it is completed](./a2a/send-blocking.svg)
 
 ```json
 {
@@ -298,6 +306,8 @@ The client answers with a message that names the task:
 
 Then the same task continues under the same ID, and the answer works like any other send: blocking by default.
 
+![Animated sequence: a permission.asked event makes the task input-required; the client answers allow on the same taskId, OpenCode replies once to the permission, and the task completes](./a2a/input-required.svg)
+
 A message with a `taskId` fails when:
 
 | Case                                               | Error                                       |
@@ -331,6 +341,8 @@ data: {"jsonrpc":"2.0","id":2,"result":{"statusUpdate":{"taskId":"…","status":
 3. **A closing chunk** ends the artifact: empty text with `lastChunk: true`. A stretch is only known to be the last one afterwards, so this extra chunk is needed.
 4. **The status update** comes last, and the stream ends.
 
+![Animated sequence: SendStreamingMessage subscribes to session.text.ended and progress events, sends the task, one artifact chunk per finished stretch of text, a closing lastChunk, and the status update](./a2a/streaming.svg)
+
 Some cases change the sequence:
 
 - **The task finished before the stream started:** the whole answer goes out as one chunk with `lastChunk: true`, then the status.
@@ -339,6 +351,10 @@ Some cases change the sequence:
 - **A failure in the stream** sends one JSON-RPC error event (`-32603`).
 
 The streamed chunks contain all the text the turn wrote, including text written before tool calls. The task's `response` artifact, as `GetTask` returns it, holds only the last assistant message's text.
+
+A client that lost its stream reads the task with `GetTask`, then follows it again with `SubscribeToTask`. Chunks sent before it reconnected are not sent again.
+
+![Animated sequence: GetTask returns the working task, SubscribeToTask follows it again, and only text written after the reconnect arrives as chunks](./a2a/reconnect.svg)
 
 ### GetTask
 
@@ -373,6 +389,8 @@ Params `{ "id": "<taskId>" }`.
 OpenCode then waits up to 10 seconds for the task to settle and answers with it, normally as `canceled`.
 
 Interrupting stops the Session's current run, whichever task it belongs to.
+
+![Animated sequence: CancelTask reads the task, interrupts the Session, waits on Bus events for session.execution.interrupted, and answers the task as canceled](./a2a/cancel.svg)
 
 ### Not supported
 
@@ -487,6 +505,8 @@ Accept: application/json
   - a JSON-RPC error becomes a tool error: `<agent name>: <message> (<code>)`;
   - a non-2xx HTTP status fails the call;
   - a response over 5 MB fails the call.
+
+![Animated sequence: the model calls the a2a tool, which checks config and permission, discovers the remote card once, sends a blocking SendMessage, polls GetTask every 2 seconds, and returns a summary to the model](./a2a/client-role.svg)
 
 ### What the model sees
 
