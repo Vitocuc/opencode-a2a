@@ -8,6 +8,7 @@ import { CloudflareWorkersAIPlugin } from "./provider/cloudflare-workers-ai.js"
 import { DatabricksPlugin } from "./provider/databricks.js"
 import { DigitalOceanPlugin } from "./provider/digitalocean.js"
 import { GithubCopilotPlugin } from "./provider/github-copilot.js"
+import { GepetoPlugin } from "./provider/gepeto.js"
 import { GitLabPlugin } from "./provider/gitlab.js"
 import { GoogleVertexPlugin } from "./provider/google-vertex.js"
 import { KiloPlugin } from "./provider/kilo.js"
@@ -39,6 +40,7 @@ export const ProviderPlugins: PluginInternal.InternalPlugin[] = [
   CloudflareWorkersAIPlugin,
   DatabricksPlugin,
   DigitalOceanPlugin,
+  GepetoPlugin,
   GithubCopilotPlugin,
   GitLabPlugin,
   GoogleVertexPlugin,
