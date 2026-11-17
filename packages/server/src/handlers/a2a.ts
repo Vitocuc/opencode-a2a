@@ -484,20 +484,16 @@ export const makeA2A = Effect.gen(function* () {
       artifact: responseArtifact(id, text),
       ...flags,
     })
-    // A turn that finished before the stream started streamed no chunks, so its answer goes out whole. Streamed
-    // chunks end with an empty one marked lastChunk, since a segment is only known to be last afterwards.
+    // Streamed chunks carry every stretch of text the turn wrote, but the task's answer is only its last message, and
+    // a stretch is only known to be last afterwards. So the closing chunk replaces the streamed ones (append: false)
+    // with the answer, and a stream ends with the same artifact GetTask returns.
     const final = (task: A2ACodec.Task): A2ACodec.Event[] => {
       // A task waiting for input ends this stream; the client agent answers it with a message on the same task.
       if (A2ACodec.isInterrupted(task.status.state))
         return [{ type: "status", taskId: id, contextId: ref.sessionID, status: task.status }]
       if (!A2ACodec.isTerminal(task.status.state)) return []
       const answer = task.artifacts?.[0]?.parts[0]
-      const closing =
-        chunks.count > 0
-          ? [artifact("", { append: true, lastChunk: true })]
-          : answer?.type === "text"
-            ? [artifact(answer.text, { lastChunk: true })]
-            : []
+      const closing = answer?.type === "text" ? [artifact(answer.text, { lastChunk: true })] : []
       return [...closing, { type: "status", taskId: id, contextId: ref.sessionID, status: task.status }]
     }
     const first: A2ACodec.Event = {

@@ -192,7 +192,7 @@ Both methods admit the message the same way and start the same task. They differ
 | HTTP response      | One JSON-RPC response                                      | A `text/event-stream` of JSON-RPC responses with the same `id` |
 | What comes back    | The task once, when it is terminal or `input-required`     | The task first, then artifact chunks and a status update       |
 | Partial text       | No, the answer arrives whole                               | Yes, one chunk per finished stretch of text                    |
-| Answer text        | The last assistant message's text                          | All the text the turn wrote                                    |
+| Answer text        | The last assistant message's text                          | Every stretch while it runs, then the last message's text      |
 | Return before done | `returnImmediately: true` (1.0) or `blocking: false` (0.3) | Not needed: the stream reports progress as it goes             |
 
 A blocking `SendMessage` also waits for the end; it is silent until then. Streaming suits a client that shows progress, such as a chat UI. Either way, a task that needs input ends the call, and the client answers it with a new message on the same `taskId`. `SubscribeToTask` is the stream without a new message: it follows a task that already runs.
@@ -327,21 +327,21 @@ The events, one JSON-RPC response per `data:` line:
 ```text
 data: {"jsonrpc":"2.0","id":2,"result":{"task":{"id":"…","contextId":"…","status":{"state":"TASK_STATE_WORKING"},"artifacts":[],…}}}
 
-data: {"jsonrpc":"2.0","id":2,"result":{"artifactUpdate":{"taskId":"…","artifact":{"artifactId":"…:response","name":"response","parts":[{"text":"Looking at the project…"}]},"append":false}}}
+data: {"jsonrpc":"2.0","id":2,"result":{"artifactUpdate":{"taskId":"…","artifact":{"artifactId":"…:response","name":"response","parts":[{"text":"Let me look at the project directory."}]},"append":false}}}
 
 data: {"jsonrpc":"2.0","id":2,"result":{"artifactUpdate":{"taskId":"…","artifact":{…,"parts":[{"text":"Found 2: top.bit, test.bit"}]},"append":true}}}
 
-data: {"jsonrpc":"2.0","id":2,"result":{"artifactUpdate":{"taskId":"…","artifact":{…,"parts":[{"text":""}]},"append":true,"lastChunk":true}}}
+data: {"jsonrpc":"2.0","id":2,"result":{"artifactUpdate":{"taskId":"…","artifact":{…,"parts":[{"text":"Found 2: top.bit, test.bit"}]},"append":false,"lastChunk":true}}}
 
 data: {"jsonrpc":"2.0","id":2,"result":{"statusUpdate":{"taskId":"…","status":{"state":"TASK_STATE_COMPLETED",…}}}}
 ```
 
 1. **The task** comes first, as `working`, with no artifacts.
 2. **One artifact chunk** follows for each finished stretch of assistant text. The first has `append: false`, the rest `append: true`.
-3. **A closing chunk** ends the artifact: empty text with `lastChunk: true`. A stretch is only known to be the last one afterwards, so this extra chunk is needed.
+3. **A closing chunk** ends the artifact with `lastChunk: true` and `append: false`: it **replaces** the streamed chunks with the task's answer, the last assistant message's text. A stretch is only known to be the last one afterwards, so this extra chunk is needed.
 4. **The status update** comes last, and the stream ends.
 
-![Animated sequence: SendStreamingMessage subscribes to session.text.ended and progress events, sends the task, one artifact chunk per finished stretch of text, a closing lastChunk, and the status update](./a2a/streaming.svg)
+![Animated sequence: SendStreamingMessage subscribes to session.text.ended and progress events, sends the task, one artifact chunk per finished stretch of text, a closing lastChunk that replaces them with the answer, and the status update](./a2a/streaming.svg)
 
 Some cases change the sequence:
 
@@ -350,7 +350,7 @@ Some cases change the sequence:
 - **Keep-alive:** a `: heartbeat` comment line is sent every 15 seconds.
 - **A failure in the stream** sends one JSON-RPC error event (`-32603`).
 
-The streamed chunks contain all the text the turn wrote, including text written before tool calls. The task's `response` artifact, as `GetTask` returns it, holds only the last assistant message's text.
+While the task runs, the chunks show all the text the turn writes, including text written before tool calls. The closing chunk then leaves the artifact equal to the `response` artifact that `GetTask` returns. A client that appends every chunk and ignores `append: false` would show the answer twice; the a2a-sdk replaces the artifact, as the specification asks.
 
 A client that lost its stream reads the task with `GetTask`, then follows it again with `SubscribeToTask`. Chunks sent before it reconnected are not sent again.
 

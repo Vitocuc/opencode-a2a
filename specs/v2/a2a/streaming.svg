@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 812" width="960" height="812" role="img" aria-labelledby="t d">
   <title id="t">SendStreamingMessage</title>
-  <desc id="d">The handler follows live Bus events and turns each finished stretch of text into an SSE artifact chunk.</desc>
+  <desc id="d">The handler follows live Bus events and turns each finished stretch of text into an SSE artifact chunk, and closes with a chunk that replaces them with the answer.</desc>
   <style>
     svg{--bg:#ffffff;--text:#1f2328;--muted:#59636e;--line:#d1d9e0;--band:#f6f8fa;--client:#0969da;--server:#1a7f37;--core:#8250df;--bus:#bc4c00;--remote:#bf3989;--on:#ffffff}
     @media (prefers-color-scheme:dark){svg{--bg:#0d1117;--text:#e6edf3;--muted:#9198a1;--line:#3d444d;--band:#151b23;--client:#4493f8;--server:#3fb950;--core:#ab7df8;--bus:#f0883e;--remote:#f778ba;--on:#0d1117}}
@@ -204,7 +204,7 @@
   <line x1="360" y1="696" x2="127" y2="696" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d14 22.30s linear infinite"/>
   <g class="anim" style="animation:c14 22.30s linear infinite">
     <polygon points="120,696 129,691 129,701" style="fill:var(--server)"/>
-    <text x="240" y="689" class="cap" text-anchor="middle"><tspan class="pname">lastChunk</tspan><tspan dx="8">artifactUpdate: empty text, append: true, lastChunk: true</tspan></text>
+    <text x="240" y="689" class="cap" text-anchor="middle"><tspan class="pname">lastChunk</tspan><tspan dx="8">append: false · the answer replaces the chunks</tspan></text>
   </g>
   <g class="pkt anim" style="animation:f14 22.30s linear infinite">
     <rect x="319.5" y="686" width="81" height="20" rx="10" style="fill:var(--server)"/>

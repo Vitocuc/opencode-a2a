@@ -182,7 +182,7 @@
   <line x1="360" y1="656" x2="127" y2="656" class="msg anim" style="stroke:var(--server);stroke-dasharray:240;animation:d13 19.70s linear infinite"/>
   <g class="anim" style="animation:c13 19.70s linear infinite">
     <polygon points="120,656 129,651 129,661" style="fill:var(--server)"/>
-    <text x="240" y="649" class="cap" text-anchor="middle"><tspan class="pname">lastChunk</tspan><tspan dx="8">artifactUpdate: empty, lastChunk: true</tspan></text>
+    <text x="240" y="649" class="cap" text-anchor="middle"><tspan class="pname">lastChunk</tspan><tspan dx="8">append: false · the answer replaces the chunks</tspan></text>
   </g>
   <g class="pkt anim" style="animation:f13 19.70s linear infinite">
     <rect x="319.5" y="646" width="81" height="20" rx="10" style="fill:var(--server)"/>

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 import { expect } from "bun:test"
-import { LLMClient } from "@opencode/ai/effect"
+import { LLMClient, LLMEvent } from "@opencode/ai/effect"
 import { TestLLM } from "@opencode/ai/testing"
 import { OpenCode } from "@opencode/client"
 import { A2AClient } from "@opencode/core/a2a/client"
@@ -410,6 +410,79 @@ it.live(
         }),
       )
       expect(frames.at(-1)).toMatchObject({ statusUpdate: { status: { state: "TASK_STATE_COMPLETED" } } })
+    }),
+  20_000,
+)
+
+// The stream shows every stretch of text as it comes, but its artifact must end as GetTask's: the last message only.
+it.live(
+  "ends a stream with the same answer GetTask returns",
+  () =>
+    Effect.gen(function* () {
+      const llm = yield* TestLLM.Test.pipe(Effect.provide(TestLLM.testLayer()))
+      // Text, then a tool call; once the call's result is in the history, the answer.
+      yield* llm.serve((request) => {
+        if (request.tools.length === 0) return TestLLM.text("Title", "title")
+        if (JSON.stringify(request.messages).split("call-look").length - 1 >= 2)
+          return TestLLM.text("Found 2: top.bit, test.bit", "answer")
+        return TestLLM.toolCalls(
+          LLMEvent.textStart({ id: "look" }),
+          LLMEvent.textDelta({ id: "look", text: "Let me look at the project directory." }),
+          LLMEvent.textEnd({ id: "look" }),
+          LLMEvent.toolCall({ id: "call-look", name: "glob", input: { pattern: "*.bit" } }),
+        )
+      })
+      const { handler, query } = yield* serveProject("opencode-a2a-answer-", llm)
+      const post = (method: string, params: unknown) =>
+        handler(
+          new Request(`${base}/api/experimental/a2a${query}`, {
+            method: "POST",
+            headers: { "content-type": "application/json", "a2a-version": "1.0" },
+            body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+          }),
+        )
+      // Hold the model until the stream is open, so each stretch of text arrives as a chunk.
+      const gate = yield* llm.gate()
+      const response = yield* Effect.promise(() =>
+        post("SendStreamingMessage", {
+          message: { messageId: "look", role: "ROLE_USER", parts: [{ text: "List the .bit files" }] },
+        }),
+      )
+      const reader = response.body!.getReader()
+      const decoder = new TextDecoder()
+      // The first frame is sent before the model runs, which subscribes the stream to the turn's events.
+      const opening = yield* Effect.promise(() => reader.read())
+      yield* gate.started
+      yield* gate.release
+      // The stream ends itself after the status update.
+      const body = yield* Effect.promise(async () => {
+        const texts = [decoder.decode(opening.value, { stream: true })]
+        for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read())
+          texts.push(decoder.decode(chunk.value, { stream: true }))
+        return texts.join("")
+      }).pipe(
+        Effect.timeoutOrElse({ duration: "10 seconds", orElse: () => Effect.die(new Error("stream never finished")) }),
+      )
+      expect(body).toContain("TASK_STATE_WORKING")
+      expect(body).toContain("TASK_STATE_COMPLETED")
+      const updates = body
+        .split("\n\n")
+        .filter((frame) => frame.startsWith("data: "))
+        .map((frame) => JSON.parse(frame.slice("data: ".length)).result)
+        .flatMap((result) => (result.artifactUpdate ? [result.artifactUpdate] : []))
+      // Both stretches were streamed, the first starting the artifact and the second appended to it.
+      expect(updates.slice(0, 2)).toMatchObject([
+        { append: false, artifact: { parts: [{ text: "Let me look at the project directory." }] } },
+        { append: true, artifact: { parts: [{ text: "Found 2: top.bit, test.bit" }] } },
+      ])
+      // The closing chunk replaces them with the answer.
+      const closing = updates.at(-1)
+      expect(closing).toMatchObject({ lastChunk: true, artifact: { parts: [{ text: "Found 2: top.bit, test.bit" }] } })
+      expect(closing.append).toBeFalsy()
+      const task = yield* Effect.promise(() =>
+        post("GetTask", { id: closing.taskId }).then((r) => r.json() as Promise<{ result: { artifacts: unknown[] } }>),
+      )
+      expect(task.result.artifacts).toEqual([closing.artifact])
     }),
   20_000,
 )
