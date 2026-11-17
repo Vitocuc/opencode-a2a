@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@opencode/a2a-registry-mcp",
+  "version": "2.3.0",
+  "private": true,
+  "description": "An MCP server that lists a company's internal A2A agents from a file, with the A2A Registry's tools",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "a2a-registry-mcp": "./src/main.ts"
+  },
+  "exports": {
+    "./registry": "./src/registry.ts",
+    "./server": "./src/server.ts"
+  },
+  "scripts": {
+    "test": "bun test --only-failures",
+    "typecheck": "bun check --no-script",
+    "typecheck:tsc": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "@opencode/schema": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "catalog:",
+    "@types/bun": "catalog:",
+    "@typescript/native": "catalog:"
+  }
+}
