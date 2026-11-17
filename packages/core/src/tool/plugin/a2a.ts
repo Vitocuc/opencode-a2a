@@ -1,5 +1,6 @@
 export * as A2ATool from "./a2a.js"
 
+import path from "node:path"
 import { ToolFailure } from "@opencode/ai/effect"
 import type { Context } from "@opencode/plugin/effect/plugin"
 import { A2A } from "@opencode/schema/a2a"
@@ -7,16 +8,21 @@ import { ConfigA2A } from "@opencode/schema/config/a2a"
 import type { Document, Entry } from "@opencode/schema/config"
 import { Duration, Effect, Fiber, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
+import { FSUtil } from "@opencode/util/fs-util"
 import { A2AClient } from "../../a2a/client.js"
 import { A2ACodec } from "../../a2a/codec.js"
 import { Config } from "../../config.js"
 import { ConfigEntryObserver } from "../../config/plugin/entry-observer.js"
+import { FileAccess } from "../../file-access.js"
 import { Flag } from "../../flag.js"
+import { Location } from "../../location.js"
 import { Permission } from "../../permission.js"
 
 export const name = "a2a"
 export const addName = "a2a_add"
 export const DEFAULT_TIMEOUT_SECONDS = 600
+/** Files sent with one message go inline, so their total size is capped. */
+export const MAX_SEND_BYTES = 10 * 1024 * 1024
 
 export const Input = Schema.Struct({
   agent: Schema.String.annotate({ description: "Name of the remote agent, as listed in this tool's description" }),
@@ -29,6 +35,9 @@ export const Input = Schema.Struct({
   taskId: Schema.String.pipe(Schema.optionalKey).annotate({
     description: "taskId of a task in the input-required state, to answer the agent's question",
   }),
+  files: Schema.Array(Schema.String).pipe(Schema.optionalKey).annotate({
+    description: "Paths of files to send with the message, read like the read tool reads them; 10 MB in total",
+  }),
 })
 
 const Output = Schema.Struct({
@@ -37,6 +46,9 @@ const Output = Schema.Struct({
   taskId: Schema.String.pipe(Schema.optionalKey),
   state: A2A.State,
   text: Schema.String,
+  files: Schema.Array(Schema.String)
+    .pipe(Schema.optionalKey)
+    .annotate({ description: "Files the agent returned, saved under .opencode/a2a/<taskId>/" }),
 })
 
 export const AddInput = Schema.Struct({
@@ -65,6 +77,9 @@ export const Plugin = {
     const http = yield* HttpClient.HttpClient
     const permission = yield* Permission.Service
     const flags = yield* Flag.Service
+    const access = yield* FileAccess.Service
+    const fs = yield* FSUtil.Service
+    const location = yield* Location.Service
     const scope = yield* Effect.scope
     // Cards are read in the background and kept per URL, so the tool can list each agent's skill names; a config
     // change that moves an agent reads its new card. An agent whose card can't be read is listed as unreachable
@@ -94,6 +109,30 @@ export const Plugin = {
         { concurrency: 4, discard: true },
       )
       yield* ctx.tool.reload()
+    })
+    // Files a remote agent returns inline are saved in the project, one folder per task; links are only listed.
+    const save = Effect.fnUntraced(function* (result: A2ACodec.Task | A2ACodec.Message) {
+      const parts = "parts" in result ? result.parts : (result.artifacts ?? []).flatMap((artifact) => artifact.parts)
+      const files = parts.flatMap((part) => (part.type === "file" && part.bytes ? [part] : []))
+      if (files.length === 0) return []
+      const task = "parts" in result ? (result.taskId ?? `message-${result.messageId}`) : result.id
+      const folder = path.join(".opencode", "a2a", safeName(task))
+      const names = files.reduce<string[]>((taken, file, index) => {
+        const base = safeName(path.basename(file.name ?? "")) || `file-${index + 1}`
+        const parsed = path.parse(base)
+        const unique = (n: number): string => {
+          const candidate = n === 0 ? base : `${parsed.name}-${n}${parsed.ext}`
+          return taken.includes(candidate) ? unique(n + 1) : candidate
+        }
+        return [...taken, unique(0)]
+      }, [])
+      yield* Effect.forEach(
+        files,
+        (file, index) =>
+          fs.writeWithDirs(path.join(location.directory, folder, names[index]!), Buffer.from(file.bytes!, "base64")),
+        { discard: true },
+      )
+      return names.map((name) => path.join(folder, name))
     })
     // Internal plugins are not re-run on config changes, so reload the tools, and read any new agent's card.
     const loaded = yield* ConfigEntryObserver.observe(
@@ -216,13 +255,38 @@ export const Plugin = {
                 unreachable.delete(agent.url)
                 yield* ctx.tool.reload()
               }
+              // Files go through the read tool's checks, on top of the a2a permission above.
+              const files = yield* Effect.forEach(input.files ?? [], (file) => access.authorizeRead(file, context))
+              const sizes = yield* Effect.forEach(files, (file) =>
+                fs.stat(file.absolute).pipe(Effect.map((info) => Number(info.size))),
+              )
+              const total = sizes.reduce((sum, size) => sum + size, 0)
+              if (total > MAX_SEND_BYTES)
+                return yield* new A2AClient.RequestError({
+                  message: `The files total ${megabytes(total)} MB, over the ${megabytes(MAX_SEND_BYTES)} MB a message can carry`,
+                })
+              const attachments = yield* Effect.forEach(files, (file) =>
+                fs.readFile(file.absolute).pipe(
+                  Effect.map(
+                    (bytes): A2ACodec.Part => ({
+                      type: "file",
+                      bytes: Buffer.from(bytes).toString("base64"),
+                      name: path.basename(file.absolute),
+                      mime: Bun.file(file.absolute).type.split(";")[0],
+                    }),
+                  ),
+                ),
+              )
               const result = yield* A2AClient.send(http, target, {
                 text: input.message,
+                files: attachments,
                 contextId: input.contextId,
                 taskId: input.taskId,
                 timeout: Duration.seconds(agent.timeout ?? DEFAULT_TIMEOUT_SECONDS),
               })
-              const output = view(input.agent, result)
+              const viewed = view(input.agent, result)
+              const saved = yield* save(result)
+              const output = saved.length > 0 ? { ...viewed, files: saved } : viewed
               return { output, content: summary(output) }
             }).pipe(Effect.mapError((error) => new ToolFailure({ message: error.message, error }))),
         })
@@ -294,5 +358,19 @@ function summary(output: typeof Output.Type) {
   const ids = [output.contextId && `contextId: ${output.contextId}`, output.taskId && `taskId: ${output.taskId}`]
     .filter(Boolean)
     .join(", ")
-  return [`${output.agent} (${output.state}${ids ? `; ${ids}` : ""})`, "", output.text || "(no text)"].join("\n")
+  return [
+    `${output.agent} (${output.state}${ids ? `; ${ids}` : ""})`,
+    "",
+    output.text || "(no text)",
+    ...(output.files?.length ? ["", "Saved files:", ...output.files.map((file) => `- ${file}`)] : []),
+  ].join("\n")
+}
+
+// Task IDs and file names come from the remote agent, so only safe characters reach the file system.
+function safeName(value: string) {
+  return value.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^\.+/, "")
+}
+
+function megabytes(bytes: number) {
+  return (bytes / 1024 / 1024).toFixed(1)
 }

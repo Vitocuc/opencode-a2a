@@ -490,6 +490,141 @@ it.live("doesn't let clients cache a card that lists no skills", () =>
   }),
 )
 
+// A fake remote agent records what it receives and returns a file, so both directions are checked byte for byte.
+it.live(
+  "sends project files to a remote agent and saves the files it returns",
+  () =>
+    Effect.gen(function* () {
+      const dir = (yield* tmpdirScoped("opencode-a2a-files-")).path
+      const project = path.join(dir, "project")
+      const binary = Uint8Array.from({ length: 1024 }, (_, index) => index % 256)
+      yield* Effect.promise(async () => {
+        await fs.mkdir(project, { recursive: true })
+        await fs.writeFile(
+          path.join(project, "opencode.json"),
+          JSON.stringify({ experimental: { a2a: true }, a2a: { agents: { files: { url: "http://files.example/" } } } }),
+        )
+        await fs.writeFile(path.join(project, "data.bin"), binary)
+        await fs.writeFile(path.join(project, "big.bin"), new Uint8Array(11 * 1024 * 1024))
+      })
+      const received: { parts?: { text?: string; raw?: string; filename?: string }[] } = {}
+      const remote = async (request: Request) => {
+        if (request.method === "GET")
+          return Response.json({
+            name: "Files",
+            supportedInterfaces: [
+              { url: "http://files.example/rpc", protocolBinding: "JSONRPC", protocolVersion: "1.0" },
+            ],
+          })
+        const body = await request.json()
+        received.parts = body.params.message.parts
+        return Response.json({
+          jsonrpc: "2.0",
+          id: body.id,
+          result: {
+            task: {
+              id: "remote:task/1",
+              contextId: "ctx-1",
+              status: { state: "TASK_STATE_COMPLETED" },
+              artifacts: [
+                {
+                  artifactId: "out",
+                  parts: [
+                    { text: "Processed" },
+                    // A name that tries to leave the task's folder.
+                    { raw: Buffer.from("result bytes").toString("base64"), filename: "../result.bin" },
+                  ],
+                },
+              ],
+            },
+          },
+        })
+      }
+      const llm = yield* TestLLM.Test.pipe(Effect.provide(TestLLM.testLayer()))
+      yield* llm.serve((request) => {
+        if (request.tools.length === 0) return TestLLM.text("Title", "title")
+        const body = JSON.stringify(request.messages)
+        if (body.split("call-files").length - 1 >= 2) return TestLLM.text("Done", "done")
+        return TestLLM.toolCall("call-files", "a2a", {
+          agent: "files",
+          message: "Process this",
+          files: [body.includes("Send big") ? "big.bin" : "data.bin"],
+        })
+      })
+      const handler = yield* ServerFetch.make(
+        {
+          app: { version: "test" },
+          database: { path: path.join(dir, "opencode.db") },
+          config: {
+            directory: path.join(dir, "global"),
+            project: true,
+            claude: false,
+            content: JSON.stringify(provider),
+          },
+          models: { fetch: false },
+          fs: { filewatcher: false },
+          fetch: Object.assign(
+            (input: string | URL | Request, init?: RequestInit) => remote(new Request(input, init)),
+            { preconnect: fetch.preconnect },
+          ),
+        },
+        { overrides: [llmClient.replace(Layer.succeed(LLMClient.Service, llm))] },
+      )
+      const api = OpenCode.make({
+        baseUrl: base,
+        fetch: Object.assign((input: string | URL | Request, init?: RequestInit) => handler(new Request(input, init)), {
+          preconnect: fetch.preconnect,
+        }),
+      })
+      // The first call asks for the a2a permission and is answered "always", so the second goes straight through.
+      const run = async (text: string, ask: boolean) => {
+        const session = await api.session.create({ location: { directory: project } })
+        await api.session.prompt({ sessionID: session.id, text })
+        const deadline = Date.now() + 10_000
+        const asked = async (): Promise<Awaited<ReturnType<typeof api.permission.list>>[number]> => {
+          const found = (await api.permission.list({ sessionID: session.id })).find((item) => item.action === "a2a")
+          if (found) return found
+          if (Date.now() > deadline) throw new Error("the a2a call never asked permission")
+          await Bun.sleep(20)
+          return asked()
+        }
+        if (ask) {
+          const request = await asked()
+          await api.permission.reply({ sessionID: session.id, requestID: request.id, decision: "always" })
+        }
+        await api.experimental.session.wait({ sessionID: session.id })
+      }
+
+      yield* Effect.promise(async () => {
+        const deadline = Date.now() + 5_000
+        while (
+          !(await api.model.list({ location: { directory: project } })).data.some((m) => m.id === "fictional-chat")
+        ) {
+          if (Date.now() > deadline) throw new Error("model never loaded")
+          await Bun.sleep(20)
+        }
+        await run("Send data", true)
+      })
+      // The binary reached the remote agent intact, inline after the text.
+      expect(received.parts?.[0]).toEqual({ text: "Process this" })
+      expect(received.parts?.[1]?.filename).toBe("data.bin")
+      expect(new Uint8Array(Buffer.from(received.parts?.[1]?.raw ?? "", "base64"))).toEqual(binary)
+      // The returned file is saved in the task's own folder, whatever name the remote gave it.
+      const saved = path.join(project, ".opencode", "a2a", "remote_task_1", "result.bin")
+      expect(yield* Effect.promise(() => fs.readFile(saved, "utf8"))).toBe("result bytes")
+      const answered = JSON.stringify((yield* llm.requests()).at(-1)?.messages)
+      expect(answered).toContain("Saved files:")
+      expect(answered).toContain(path.join(".opencode", "a2a", "remote_task_1", "result.bin"))
+
+      received.parts = undefined
+      yield* Effect.promise(() => run("Send big", false))
+      // Over the limit nothing is sent, and the model is told why.
+      expect(received.parts).toBeUndefined()
+      expect(JSON.stringify((yield* llm.requests()).at(-1)?.messages)).toContain("over the 10.0 MB")
+    }),
+  20_000,
+)
+
 // One A2A-enabled project on a fresh server, returned once the scripted model has loaded.
 const serveProject = (prefix: string, llm: TestLLM.TestInterface, config: Record<string, unknown> = {}) =>
   Effect.gen(function* () {

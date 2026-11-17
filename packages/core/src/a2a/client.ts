@@ -51,6 +51,8 @@ export const send = Effect.fn("A2AClient.send")(function* (
   target: Target,
   input: {
     readonly text: string
+    /** File parts sent after the text, already in the internal shape; the codec encodes them per dialect. */
+    readonly files?: readonly A2ACodec.Part[]
     readonly contextId?: string
     readonly taskId?: string
     readonly timeout: Duration.Input
@@ -59,7 +61,7 @@ export const send = Effect.fn("A2AClient.send")(function* (
   const message: A2ACodec.Message = {
     messageId: crypto.randomUUID(),
     role: "user",
-    parts: [{ type: "text", text: input.text }],
+    parts: [{ type: "text", text: input.text }, ...(input.files ?? [])],
     contextId: input.contextId,
     taskId: input.taskId,
   }

@@ -457,6 +457,7 @@ The model gets the `a2a` tool only when the flag is on and at least one agent is
 | `message`   | The task, written to stand on its own: the remote can't see this conversation |
 | `contextId` | Optional: continue an earlier remote conversation                             |
 | `taskId`    | Optional: answer a remote task that is `input-required`                       |
+| `files`     | Optional: paths of files to send with the message, 10 MB in total             |
 
 Every call asks permission by default, with action `a2a` and the agent's name as the resource: it sends this conversation's text to a third party, so the default agent rules ask for it even where everything else is allowed. Answering "always" saves an allow rule for `a2a` on every agent in this project, so later calls don't ask. A config rule such as `{ "action": "a2a", "resource": "*", "effect": "allow" }` turns the question off. In a Session that an A2A client started, the prompt becomes that task's `input-required`, as any other permission does.
 
@@ -541,7 +542,7 @@ Accept: application/json
 ```
 
 - **Why not streaming:** the model gets one result per tool call, so streamed chunks would not reach it any sooner. Polling also covers remote servers that answer before the task ends despite the blocking flag.
-- **The request:** one text part, with `contextId` and `taskId` only when the model passed them. A 0.3 remote gets `message/send` with `blocking: true` and no `A2A-Version` header.
+- **The request:** one text part, then one file part per file the model passed, with `contextId` and `taskId` only when the model passed them. A 0.3 remote gets `message/send` with `blocking: true` and no `A2A-Version` header.
 - **The result:**
   - a message counts as a completed answer;
   - a task that is terminal or `input-required` is the answer;
@@ -563,6 +564,13 @@ Hello from Python (turn 1)
 ```
 
 That is the agent name, the task state, the remote IDs, and the text. The text comes from the task's artifacts, or, when it has none, from its status message: the question of an `input-required` task, or the reason for a failure. A reply message gives its own text. With these IDs the model can continue the remote conversation (`contextId`) or answer its question (`taskId`, when the state is `input-required`).
+
+### Files
+
+- **Sending:** each path in `files` goes through the same checks as the `read` tool (external directories, then the `read` permission), after the `a2a` permission. The files are sent inline as file parts in the target's dialect (`raw`/`filename`/`mediaType` in 1.0, `file.bytes` in 0.3), up to 10 MB in total. Over the limit the call fails before anything is sent, saying how big the files are.
+- **Receiving:** a file part with inline bytes, in the task's artifacts or a reply message, is saved under `.opencode/a2a/<taskId>/` in the project. The output's `files` lists the saved paths, and the model sees them under "Saved files". The folder and file names keep only safe characters, so a remote name like `../x` stays inside the task's folder. Two files with the same name get `-1`, `-2`.
+- **Links:** a file part with only a URL is listed in the text by its URL. OpenCode doesn't download it.
+- **Size:** a remote answer is read up to 5 MB, so files received in one answer are smaller than that.
 
 The client role does not stream, cancel, or list remote tasks.
 
