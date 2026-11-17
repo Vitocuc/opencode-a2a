@@ -14,6 +14,7 @@
     "./server": "./src/server.ts"
   },
   "scripts": {
+    "build": "bun build src/main.ts --target=bun --outfile dist/a2a-registry-mcp.js",
     "test": "bun test --only-failures",
     "typecheck": "bun check --no-script",
     "typecheck:tsc": "tsc --noEmit"

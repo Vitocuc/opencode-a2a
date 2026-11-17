@@ -31,7 +31,8 @@ if (args.values.http) {
   const server = Bun.serve({
     hostname: args.values.host,
     port: Number(args.values.port),
-    fetch: (request) => handler.fetch(request),
+    // Docker's health check asks /health; every other path is the MCP endpoint.
+    fetch: (request) => (new URL(request.url).pathname === "/health" ? new Response("ok") : handler.fetch(request)),
   })
   console.error(`a2a-registry-mcp on http://${server.hostname}:${server.port}/`)
 }

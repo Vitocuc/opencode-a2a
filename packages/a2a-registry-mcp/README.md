@@ -62,6 +62,49 @@ bun packages/a2a-registry-mcp/src/main.ts agents.json --http --host 0.0.0.0 --po
 { "mcp": { "servers": { "company-agents": { "type": "remote", "url": "http://agents.internal:8787/" } } } }
 ```
 
+## Run one shared server for your organization
+
+One server on an internal host keeps one agent list for everyone. Each person's config then holds only its URL, like any other remote MCP server, and nothing needs installing on their machines.
+
+There is no token: anyone who can reach the host can list the agents. Run it only where the internal network (or VPN) is the boundary, never on a host reachable from the internet.
+
+### Build the image
+
+From this package, on any machine with Bun and Docker:
+
+```bash
+bun run build
+docker build -t a2a-registry-mcp .
+```
+
+`bun run build` bundles the server and its dependencies into `dist/a2a-registry-mcp.js`, so the image holds only that file and Bun. Copy the image to the host with `docker save` / `docker load`, or push it to your internal registry.
+
+### Run it on the host
+
+Keep the agents file in a folder on the host, for example `/srv/a2a-agents/agents.json`, and mount the folder:
+
+```bash
+docker run -d --name a2a-agents --restart unless-stopped \
+  -p 8787:8787 \
+  -v /srv/a2a-agents:/data:ro \
+  a2a-registry-mcp
+```
+
+- **Mount the folder, not the file.** Editors often save by replacing the file, and a single-file mount would keep showing the old one.
+- **Update the list** by editing `/srv/a2a-agents/agents.json` on the host. The server rereads it on the next call; no restart.
+- **Tokens for agents' cards:** pass them with `-e NAME=value`, and reference them in the file as `{env:NAME}`.
+- **Health:** `GET /health` answers `ok`, and Docker reports the container as healthy.
+
+### Everyone's config
+
+```json
+{
+  "mcp": {
+    "bsc-agents": { "type": "remote", "url": "http://<host>:8787/", "enabled": true }
+  }
+}
+```
+
 The public registry can sit next to it:
 
 ```json
