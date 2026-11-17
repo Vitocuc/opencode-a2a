@@ -52,6 +52,7 @@ export const docsSections: DocsSection[] = [
           { title: "Attachments", slug: "attachments" },
           { title: "Tools", slug: "tools" },
           { title: "MCP servers", slug: "mcp-servers" },
+          { title: "A2A agents", slug: "a2a" },
           { title: "Permissions", slug: "permissions" },
           { title: "Policies", slug: "policies" },
           { title: "Instructions", slug: "instructions" },

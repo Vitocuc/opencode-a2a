@@ -2,7 +2,7 @@
 
 Status: **Current semantic overview, experimental.** Behind the `a2a` flag. The routes live under `/api/experimental/a2a` and may change without notice.
 
-This document describes how OpenCode speaks the [Agent2Agent (A2A) protocol](https://a2a-protocol.org), one connection at a time: who opens it, what is sent, what comes back, and which OpenCode element sits behind each A2A field. It does not repeat the A2A specification. It only states the choices OpenCode makes on top of it.
+This document describes how OpenCode speaks the [Agent2Agent (A2A) protocol](https://a2a-protocol.org), one connection at a time: who opens it, what is sent, what comes back, and which OpenCode element sits behind each A2A field. It does not repeat the A2A specification. It only states the choices OpenCode makes on top of it. For how to use A2A, see the user guide, `services/site/src/docs/content/a2a.mdx` (`/docs/a2a` on the site).
 
 ## Roles
 
