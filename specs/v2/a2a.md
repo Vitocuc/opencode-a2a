@@ -475,7 +475,7 @@ The `a2a_add` tool takes the card URL (`url`) and an optional `name`; the defaul
 - **Permission:** action `a2a_add`, the card URL as the resource, and the agent's name, card name, endpoint and skills as metadata, which the TUI shows. The default agent rules **ask** for it even where everything else is allowed, and it offers no "always": each agent is approved on its own. A config rule can still override it.
 - **Authentication:** when the card declares `securitySchemes`, the agent is written with `Authorization: Bearer {env:A2A_<NAME>_TOKEN}`, and the model is told to ask you to set that variable.
 - **Writing:** through `PATCH /api/experimental/config` with `{ "a2a": { "agents": { "<name>": { … } } } }`. A patch sets only the agents it names and leaves the rest of the file, comments included, as it was.
-- **Card text** comes from a third party. It is shown to you in the permission prompt, never written into the agent's `description`, and never put in the `a2a` tool's description.
+- **Card text** comes from a third party. It is shown to you in the permission prompt and never written into the agent's `description`. The `a2a` tool's description shows only the card's skill names, capped and marked as data.
 
 #### Finding agents
 
@@ -500,7 +500,15 @@ OpenCode doesn't search for agents itself. The model finds them through MCP serv
 
 ### C3: Reading the remote card
 
-On the first call to an agent, OpenCode reads its card and keeps it for that URL until the process ends.
+With the flag on, OpenCode reads every configured agent's card in the background: when the tool plugin starts, and for any new URL after a config change. It keeps each card for that URL until the process ends. A card that can't be read within 15 seconds marks its agent unreachable; the next call to that agent reads it again.
+
+The `a2a` tool's description lists, for each agent:
+
+- its name and your config `description`;
+- the **skill names** from its card, marked as data, not instructions: at most 12, each cut to one line of at most 40 characters, with "and N more" for the rest. Card and skill descriptions never appear;
+- "(unreachable: its card could not be read)" when the card couldn't be read.
+
+The first model step can come before the cards are read; the description gains the skill names once they are.
 
 ```http
 GET http://127.0.0.1:48810/.well-known/agent-card.json
