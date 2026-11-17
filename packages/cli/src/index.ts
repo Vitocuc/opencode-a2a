@@ -61,6 +61,9 @@ const Handlers = Runtime.handlers(Commands, {
     "heap-dump": () => import("./commands/handlers/debug/heap-dump"),
     paths: () => import("./commands/handlers/debug/paths"),
   },
+  a2a: {
+    add: () => import("./commands/handlers/a2a/add"),
+  },
   mcp: {
     list: () => import("./commands/handlers/mcp/list"),
     add: () => import("./commands/handlers/mcp/add"),

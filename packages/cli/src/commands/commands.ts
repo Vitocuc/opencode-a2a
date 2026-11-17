@@ -235,6 +235,34 @@ const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME
         }),
       ],
     }),
+    Spec.make("a2a", {
+      description: "Manage remote A2A (Agent2Agent) agents",
+      commands: [
+        Spec.make("add", {
+          description: "Read a remote A2A agent's card and add the agent to the global configuration",
+          params: {
+            url: Argument.String("url").pipe(
+              Argument.withDescription("The agent's Agent Card URL, or a base URL with a well-known card"),
+            ),
+            name: Flag.String("name").pipe(
+              Flag.withDescription("Name for the agent (default: from its card)"),
+              Flag.optional,
+            ),
+            header: Flag.KeyValuePair("header").pipe(
+              Flag.withDescription(
+                "HTTP header as name=ENV_VAR; the value is read from that environment variable, never stored",
+              ),
+              Flag.optional,
+            ),
+            force: Flag.Boolean("force").pipe(
+              Flag.withDescription("Replace an agent with the same name"),
+              Flag.withDefault(false),
+            ),
+            yes: Flag.Boolean("yes").pipe(Flag.withDescription("Add without asking"), Flag.withDefault(false)),
+          },
+        }),
+      ],
+    }),
     Spec.make("mcp", {
       description: "Manage MCP (Model Context Protocol) servers",
       commands: [

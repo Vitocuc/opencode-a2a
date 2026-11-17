@@ -443,11 +443,11 @@ In 1.0, the A2A-specific codes (`-32001` to `-32009`) also carry a `google.rpc.E
 | ------------- | -------------------------------------------------------------------------------------- |
 | `url`         | The card URL, or a base URL where the card is read from `/.well-known/agent-card.json` |
 | `headers`     | Sent with every request to this agent, for example `Authorization`                     |
-| `description` | Shown to the model instead of the card's                                               |
+| `description` | Shown to the model. The card's own text never is                                       |
 | `enabled`     | `false` hides the agent                                                                |
 | `timeout`     | Seconds to wait for a task to settle, default 600                                      |
 
-The model gets the `a2a` tool only when the flag is on and at least one agent is enabled. Each config entry is read on its own, so one broken entry doesn't hide the others. A config change reloads the tool.
+The model gets the `a2a` tool only when the flag is on and at least one agent is enabled, and the `a2a_add` tool whenever the flag is on. Each config entry is read on its own, so one broken entry doesn't hide the others. A config change reloads the tool.
 
 ### The tool
 
@@ -458,7 +458,45 @@ The model gets the `a2a` tool only when the flag is on and at least one agent is
 | `contextId` | Optional: continue an earlier remote conversation                             |
 | `taskId`    | Optional: answer a remote task that is `input-required`                       |
 
-Every call first asks the user for permission, with action `a2a` and the agent's name as the resource. Answering "always" saves an allow rule for `a2a` on every agent in this project, so later calls don't ask again.
+Every call goes through a permission check, with action `a2a` and the agent's name as the resource. The default agent rules allow it; a rule such as `{ "action": "a2a", "resource": "*", "effect": "ask" }` makes it ask. Answering "always" then saves an allow rule for `a2a` on every agent in this project.
+
+### Adding remote agents
+
+Agents get into `a2a.agents` in the **global** config in three ways. Secrets are only ever written as `{env:VAR}` references.
+
+| Way                      | Who chooses                               | What it does                                                                                                                                                                       |
+| ------------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Edit the config          | You                                       | As above                                                                                                                                                                           |
+| `opencode a2a add <url>` | You                                       | Reads the card (C3), shows its name, endpoint and skills, asks, and writes the agent. `--header Authorization=ENV_VAR` writes `Bearer {env:ENV_VAR}`; `--name`, `--force`, `--yes` |
+| The `a2a_add` tool       | The model proposes, you approve or reject | Reads the card (C3), asks permission, writes the agent, and waits for the config to reload so the `a2a` tool lists it in the model's next step                                     |
+
+The `a2a_add` tool takes the card URL (`url`) and an optional `name`; the default name is made from the card's name. It fails, writing nothing, when the name is taken, the card can't be read, or the card has no JSON-RPC interface.
+
+- **Permission:** action `a2a_add`, the card URL as the resource, and the agent's name, card name, endpoint and skills as metadata, which the TUI shows. The default agent rules **ask** for it even where everything else is allowed, and it offers no "always": each agent is approved on its own. A config rule can still override it.
+- **Authentication:** when the card declares `securitySchemes`, the agent is written with `Authorization: Bearer {env:A2A_<NAME>_TOKEN}`, and the model is told to ask you to set that variable.
+- **Writing:** through `PATCH /api/experimental/config` with `{ "a2a": { "agents": { "<name>": { … } } } }`. A patch sets only the agents it names and leaves the rest of the file, comments included, as it was.
+- **Card text** comes from a third party. It is shown to you in the permission prompt, never written into the agent's `description`, and never put in the `a2a` tool's description.
+
+#### Finding agents
+
+OpenCode doesn't search for agents itself. The model finds them through MCP servers in the config, and passes a result's `wellKnownURI` to `a2a_add`.
+
+- **Public agents:** the [A2A Registry](https://www.a2aregistry.org)'s hosted MCP server, `https://a2aregistry.org/mcp/`, with `search_agents`, `list_agents`, `get_agent` and more.
+- **Internal agents** stay inside the company with `packages/a2a-registry-mcp`: an MCP server that reads a file of card URLs and exposes the same tools and result fields, over stdio or HTTP. It contacts only the URLs in its file. See its README.
+
+```json
+{
+  "mcp": {
+    "servers": {
+      "a2a-registry": { "type": "remote", "url": "https://a2aregistry.org/mcp/" },
+      "company-agents": {
+        "type": "local",
+        "command": ["bun", "/path/to/a2a-registry-mcp/src/main.ts", "/path/to/agents.json"]
+      }
+    }
+  }
+}
+```
 
 ### C3: Reading the remote card
 
