@@ -48,7 +48,9 @@ export const Info = Schema.Struct({
             { action: "read", resource: "*.env", effect: "ask" },
             { action: "read", resource: "*.env.*", effect: "ask" },
             { action: "read", resource: "*.env.example", effect: "allow" },
-            // Adding a remote A2A agent changes the global config and trusts a third party, so it always asks.
+            // Calling a remote A2A agent sends this conversation's text to a third party, and adding one changes the
+            // global config and trusts a third party, so both ask. Answering "always" allows a2a calls in the project.
+            { action: "a2a", resource: "*", effect: "ask" },
             { action: "a2a_add", resource: "*", effect: "ask" },
           ],
         }) satisfies Info,

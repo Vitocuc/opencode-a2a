@@ -458,7 +458,7 @@ The model gets the `a2a` tool only when the flag is on and at least one agent is
 | `contextId` | Optional: continue an earlier remote conversation                             |
 | `taskId`    | Optional: answer a remote task that is `input-required`                       |
 
-Every call goes through a permission check, with action `a2a` and the agent's name as the resource. The default agent rules allow it; a rule such as `{ "action": "a2a", "resource": "*", "effect": "ask" }` makes it ask. Answering "always" then saves an allow rule for `a2a` on every agent in this project.
+Every call asks permission by default, with action `a2a` and the agent's name as the resource: it sends this conversation's text to a third party, so the default agent rules ask for it even where everything else is allowed. Answering "always" saves an allow rule for `a2a` on every agent in this project, so later calls don't ask. A config rule such as `{ "action": "a2a", "resource": "*", "effect": "allow" }` turns the question off. In a Session that an A2A client started, the prompt becomes that task's `input-required`, as any other permission does.
 
 ### Adding remote agents
 

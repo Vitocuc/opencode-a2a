@@ -303,6 +303,17 @@ it.live(
         }
         const session = await api.session.create({ location: { directory: project } })
         await api.session.prompt({ sessionID: session.id, text: "Ask the other agent to say hello" })
+        // Calling a remote agent sends the conversation's text to a third party, so it asks by default.
+        const asked = async (): Promise<Awaited<ReturnType<typeof api.permission.list>>[number]> => {
+          const found = (await api.permission.list({ sessionID: session.id })).find((item) => item.action === "a2a")
+          if (found) return found
+          if (Date.now() > deadline + 5_000) throw new Error("the a2a call never asked permission")
+          await Bun.sleep(20)
+          return asked()
+        }
+        const request = await asked()
+        expect(request.resources).toEqual(["self"])
+        await api.permission.reply({ sessionID: session.id, requestID: request.id, decision: "once" })
         await api.experimental.session.wait({ sessionID: session.id })
       })
 
