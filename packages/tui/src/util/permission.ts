@@ -128,6 +128,28 @@ export function permissionPresentation(
     }
   }
 
+  if (action === "a2a_add") {
+    const name = text(metadata.name) || resources[0] || ""
+    const skills = Array.isArray(metadata.skills)
+      ? metadata.skills.filter((item): item is string => typeof item === "string")
+      : []
+    const environment = Array.isArray(metadata.environment)
+      ? metadata.environment.filter((item): item is string => typeof item === "string")
+      : []
+    return {
+      icon: "+",
+      title: `Add A2A agent ${name}`,
+      lines: [
+        ...(text(metadata.card) ? [`Card name: ${text(metadata.card)}`] : []),
+        `Card: ${text(metadata.url) || resources[0] || ""}`,
+        ...(text(metadata.endpoint) ? [`Endpoint: ${text(metadata.endpoint)}`] : []),
+        ...(skills.length > 0 ? [`Skills: ${skills.join(", ")}`] : []),
+        ...environment.map((variable) => `Authentication: set ${variable}`),
+        "It will be added to your global config.",
+      ],
+    }
+  }
+
   if (action === "doom_loop") {
     return {
       icon: "⟳",

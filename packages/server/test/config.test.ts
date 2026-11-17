@@ -99,6 +99,52 @@ it.live("updates the global shell without replacing unrelated JSONC", () =>
   }),
 )
 
+it.live("adds an A2A agent to the global config, keeping the shell and other agents", () =>
+  Effect.gen(function* () {
+    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("opencode-config-a2a-")))
+    const global = path.join(tmp.path, "global")
+    const config = path.join(global, "opencode.jsonc")
+    yield* Effect.promise(() => fs.mkdir(global, { recursive: true }))
+    yield* Effect.promise(() =>
+      fs.writeFile(
+        config,
+        `{
+  // keep this comment
+  "shell": "bash",
+  "a2a": { "agents": { "existing": { "url": "https://agents.example/existing" } } }
+}
+`,
+      ),
+    )
+    const server = yield* startServer(global)
+    const response = yield* Effect.promise(() =>
+      fetch(new URL("/api/experimental/config", server.base), {
+        method: "PATCH",
+        headers: { ...server.headers, "content-type": "application/json" },
+        body: JSON.stringify({
+          a2a: {
+            agents: {
+              translator: {
+                url: "https://agents.example/translator",
+                headers: { Authorization: "Bearer {env:TRANSLATOR_TOKEN}" },
+              },
+            },
+          },
+        }),
+      }),
+    )
+
+    expect(response.status).toBe(204)
+    const text = yield* Effect.promise(() => fs.readFile(config, "utf8"))
+    expect(text).toContain("// keep this comment")
+    // A patch without a shell leaves the shell alone, and other agents stay.
+    expect(text).toContain('"shell": "bash"')
+    expect(text).toContain('"url": "https://agents.example/existing"')
+    expect(text).toContain('"url": "https://agents.example/translator"')
+    expect(text).toContain('"Authorization": "Bearer {env:TRANSLATOR_TOKEN}"')
+  }),
+)
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }

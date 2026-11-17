@@ -4984,7 +4984,22 @@ export type ConfigGetOutput = Array<ConfigEntry>
 
 export type ConfigShellsOutput = Array<ConfigShellOption>
 
-export type ExperimentalConfigUpdateInput = { readonly shell: string | null }
+export type ExperimentalConfigUpdateInput = {
+  readonly shell?: string | null | undefined
+  readonly a2a?:
+    | {
+        readonly agents: {
+          readonly [x: string]: {
+            readonly url: string
+            readonly description?: string
+            readonly headers?: { readonly [x: string]: string }
+            readonly enabled?: boolean
+            readonly timeout?: number
+          }
+        }
+      }
+    | undefined
+}
 
 export type ExperimentalConfigUpdateOutput = void
 

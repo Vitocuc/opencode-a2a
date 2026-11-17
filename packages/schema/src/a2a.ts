@@ -168,6 +168,7 @@ export const RemoteCard = Schema.Struct({
   skills: Schema.Array(
     Schema.Struct({ id: Schema.String, name: Schema.String, description: Schema.String.pipe(optional) }),
   ).pipe(optional),
+  securitySchemes: Schema.Record(Schema.String, Schema.Unknown).pipe(optional),
 }).annotate({ identifier: "A2A.RemoteCard" })
 export type RemoteCard = typeof RemoteCard.Type
 

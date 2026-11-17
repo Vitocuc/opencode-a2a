@@ -18274,9 +18274,22 @@
                 "type": "null"
               }
             ]
+          },
+          "a2a": {
+            "type": "object",
+            "properties": {
+              "agents": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/ConfigA2A.AgentEncoded"
+                },
+                "description": "Remote A2A agents to add or replace by name; agents not named here are kept"
+              }
+            },
+            "required": ["agents"],
+            "additionalProperties": false
           }
         },
-        "required": ["shell"],
         "additionalProperties": false
       },
       "Config.Plugin.EntryEncoded": {

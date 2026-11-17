@@ -121,7 +121,12 @@ export class Info extends Schema.Class<Info>("Config.Info")({
 }) {}
 
 export const Patch = Schema.Struct({
-  shell: Schema.NullOr(Schema.String),
+  shell: Schema.NullOr(Schema.String).pipe(Schema.optionalKey),
+  a2a: Schema.Struct({
+    agents: Schema.Record(Schema.String, ConfigA2A.Agent).annotate({
+      description: "Remote A2A agents to add or replace by name; agents not named here are kept",
+    }),
+  }).pipe(Schema.optionalKey),
 }).annotate({ identifier: "Config.Patch" })
 export interface Patch extends Schema.Schema.Type<typeof Patch> {}
 

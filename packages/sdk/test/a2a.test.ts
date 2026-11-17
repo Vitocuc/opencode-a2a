@@ -315,6 +315,111 @@ it.live(
   20_000,
 )
 
+// The model proposes an agent, the user answers the permission prompt, and only an approved agent is written.
+it.live(
+  "adds a remote agent the model proposes only once the user approves it",
+  () =>
+    Effect.gen(function* () {
+      const dir = (yield* tmpdirScoped("opencode-a2a-add-")).path
+      const project = path.join(dir, "project")
+      const card = `${base}/api/experimental/a2a/card?location[directory]=${encodeURIComponent(project)}`
+      yield* Effect.promise(async () => {
+        await fs.mkdir(project, { recursive: true })
+        await fs.writeFile(path.join(project, "opencode.json"), JSON.stringify({ experimental: { a2a: true } }))
+      })
+      const llm = yield* TestLLM.Test.pipe(Effect.provide(TestLLM.testLayer()))
+      // Each prompt proposes one agent, named after the prompt, then answers once the call's result is in.
+      yield* llm.serve((request) => {
+        if (request.tools.length === 0) return TestLLM.text("Title", "title")
+        const body = JSON.stringify(request.messages)
+        if (body.split("call-add").length - 1 >= 2) return TestLLM.text("Done", "done")
+        return TestLLM.toolCall("call-add", "a2a_add", {
+          url: card,
+          name: body.includes("Reject") ? "rejected" : "approved",
+        })
+      })
+      const local: { handler?: (request: Request) => Promise<Response> } = {}
+      const handler = yield* ServerFetch.make(
+        {
+          app: { version: "test" },
+          database: { path: path.join(dir, "opencode.db") },
+          config: {
+            directory: path.join(dir, "global"),
+            project: true,
+            claude: false,
+            content: JSON.stringify(provider),
+          },
+          models: { fetch: false },
+          fs: { filewatcher: false },
+          // The proposed agent is this same server, so reading its card goes through the handler.
+          fetch: Object.assign(
+            (input: string | URL | Request, init?: RequestInit) => local.handler!(new Request(input, init)),
+            { preconnect: fetch.preconnect },
+          ),
+        },
+        { overrides: [llmClient.replace(Layer.succeed(LLMClient.Service, llm))] },
+      )
+      local.handler = handler
+      const api = OpenCode.make({
+        baseUrl: base,
+        fetch: Object.assign((input: string | URL | Request, init?: RequestInit) => handler(new Request(input, init)), {
+          preconnect: fetch.preconnect,
+        }),
+      })
+      const globalConfig = () =>
+        fs
+          .readdir(path.join(dir, "global"))
+          .then((names) => names.filter((name) => name.startsWith("opencode.json")))
+          .then((names) => Promise.all(names.map((name) => fs.readFile(path.join(dir, "global", name), "utf8"))))
+          .then((texts) => texts.join("\n"))
+          .catch(() => "")
+      const propose = async (text: string, decision: "once" | "reject") => {
+        const session = await api.session.create({ location: { directory: project } })
+        await api.session.prompt({ sessionID: session.id, text })
+        const deadline = Date.now() + 10_000
+        const pending = async (): Promise<Awaited<ReturnType<typeof api.permission.list>>[number]> => {
+          const found = (await api.permission.list({ sessionID: session.id })).find((item) => item.action === "a2a_add")
+          if (found) return found
+          if (Date.now() > deadline) throw new Error("the a2a_add permission was never asked")
+          await Bun.sleep(20)
+          return pending()
+        }
+        const request = await pending()
+        await api.permission.reply({ sessionID: session.id, requestID: request.id, decision })
+        await api.experimental.session.wait({ sessionID: session.id })
+        return request
+      }
+
+      yield* Effect.promise(async () => {
+        const deadline = Date.now() + 5_000
+        while (
+          !(await api.model.list({ location: { directory: project } })).data.some((m) => m.id === "fictional-chat")
+        ) {
+          if (Date.now() > deadline) throw new Error("model never loaded")
+          await Bun.sleep(20)
+        }
+      })
+
+      const rejected = yield* Effect.promise(() => propose("Reject the agent", "reject"))
+      // The prompt shows the card, and offers no "always": each agent is approved on its own.
+      expect(rejected).toMatchObject({
+        resources: [card],
+        metadata: { name: "rejected", url: card, skills: expect.arrayContaining(["Build"]) },
+      })
+      expect(rejected.save ?? []).toEqual([])
+      expect(yield* Effect.promise(globalConfig)).not.toContain("rejected")
+
+      yield* Effect.promise(() => propose("Add the agent", "once"))
+      const written = yield* Effect.promise(globalConfig)
+      expect(written).toContain('"approved"')
+      expect(written).toContain(card)
+      // After the config reload, later requests offer the a2a tool for the added agent.
+      const requests = yield* llm.requests()
+      expect(requests.at(-1)?.tools.map((tool) => tool.name)).toContain("a2a")
+    }),
+  20_000,
+)
+
 // One A2A-enabled project on a fresh server, returned once the scripted model has loaded.
 const serveProject = (prefix: string, llm: TestLLM.TestInterface, config: Record<string, unknown> = {}) =>
   Effect.gen(function* () {

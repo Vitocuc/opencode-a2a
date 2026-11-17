@@ -48,6 +48,8 @@ export const Info = Schema.Struct({
             { action: "read", resource: "*.env", effect: "ask" },
             { action: "read", resource: "*.env.*", effect: "ask" },
             { action: "read", resource: "*.env.example", effect: "allow" },
+            // Adding a remote A2A agent changes the global config and trusts a third party, so it always asks.
+            { action: "a2a_add", resource: "*", effect: "ask" },
           ],
         }) satisfies Info,
     })),
