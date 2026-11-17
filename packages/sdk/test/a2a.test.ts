@@ -420,6 +420,22 @@ it.live(
   20_000,
 )
 
+// A card without skills may come from a Location whose agents haven't loaded yet, so clients must not keep it.
+it.live("doesn't let clients cache a card that lists no skills", () =>
+  Effect.gen(function* () {
+    const llm = yield* TestLLM.Test.pipe(
+      Effect.provide(TestLLM.testLayer({ fallback: TestLLM.text("Hello", "answer") })),
+    )
+    // Hiding both primary agents gives a card with no skills every time, without racing the agent load.
+    const { handler, query } = yield* serveProject("opencode-a2a-skill-less-", llm, {
+      agents: { build: { hidden: true }, plan: { hidden: true } },
+    })
+    const response = yield* Effect.promise(() => handler(new Request(`${base}/api/experimental/a2a/card${query}`)))
+    expect(response.headers.get("cache-control")).toBe("no-store")
+    expect(yield* Effect.promise(() => response.json())).toMatchObject({ skills: [] })
+  }),
+)
+
 // One A2A-enabled project on a fresh server, returned once the scripted model has loaded.
 const serveProject = (prefix: string, llm: TestLLM.TestInterface, config: Record<string, unknown> = {}) =>
   Effect.gen(function* () {

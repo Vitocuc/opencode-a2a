@@ -37,7 +37,13 @@ export const makeA2A = Effect.gen(function* () {
     if (!(yield* Flag.enabled("a2a"))) return yield* new ForbiddenError({ message: DISABLED })
     const location = yield* Location.Service
     const info = yield* ServerInfo.Service
-    const agents = yield* Agent.Service.use((service) => service.list())
+    const skills = (yield* Agent.Service.use((service) => service.list()))
+      .filter((agent) => agent.mode !== "subagent" && !agent.hidden)
+      .map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        description: agent.description ?? `Work with the ${agent.name} agent.`,
+      }))
     const url = new URL(A2A_PATH, origin(request))
     url.searchParams.set("location[directory]", location.directory)
     // A version this server does not speak gets the newest card it has.
@@ -47,19 +53,18 @@ export const makeA2A = Effect.gen(function* () {
         description: `OpenCode coding agent working in ${location.directory}. Each context is an OpenCode session; pick a skill's agent with message metadata { "agent": "<skill id>" }.`,
         version: info.app.version ?? "unknown",
         url: url.href,
-        skills: agents
-          .filter((agent) => agent.mode !== "subagent" && !agent.hidden)
-          .map((agent) => ({
-            id: agent.id,
-            name: agent.name,
-            description: agent.description ?? `Work with the ${agent.name} agent.`,
-          })),
+        skills,
         basicAuth: ServerAuth.required(auth),
       }),
     )
     const etag = `"${Hash.sha256(json)}"`
-    // The card depends on the requested dialect and declares the server's auth, so caches keep it per caller.
-    const headers = { "Cache-Control": "private, max-age=300", ETag: etag, Vary: "A2A-Version, Authorization" }
+    // The card depends on the requested dialect and declares the server's auth, so caches keep it per caller. A card
+    // with no skills may come from a cold Location whose agents haven't loaded yet, so clients must not keep it.
+    const headers = {
+      "Cache-Control": skills.length > 0 ? "private, max-age=300" : "no-store",
+      ETag: etag,
+      Vary: "A2A-Version, Authorization",
+    }
     if (matchesIfNoneMatch(request.headers["if-none-match"], etag))
       return HttpServerResponse.empty({ status: 304, headers })
     return HttpServerResponse.text(json, { contentType: "application/json", headers })

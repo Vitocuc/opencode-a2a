@@ -132,7 +132,7 @@ Authorization: Basic …
 - **Skills** are the Location's agents, without subagents and hidden agents. A skill's `id` is the agent ID.
 - **The endpoint URL** is built from the host the caller reached. Behind a proxy, `X-Forwarded-Host` and `X-Forwarded-Proto` win.
 - **The 0.3 card** has `protocolVersion: "0.3.0"`, `url` and `preferredTransport: "JSONRPC"`. It also lists both interfaces in `supportedInterfaces`, so a 1.x SDK that fetched it without the header still picks 1.0.
-- **Caching:** the answer has an `ETag`, `Cache-Control: private, max-age=300` and `Vary: A2A-Version, Authorization`. A matching `If-None-Match` gets 304.
+- **Caching:** the answer has an `ETag`, `Cache-Control: private, max-age=300` and `Vary: A2A-Version, Authorization`. A matching `If-None-Match` gets 304. A card with no skills gets `Cache-Control: no-store` instead: on a Location whose agents haven't loaded yet, the list is empty for now, and a client mustn't keep it. The server doesn't wait for the agents to load.
 
 ![Animated sequence: the client gets the card, OpenCode checks auth and the flag, lists agents as skills, and answers; a second request with If-None-Match gets 304](./a2a/card.svg)
 
