@@ -113,26 +113,9 @@ Its tools include `search_agents`, `list_agents` and `get_agent`. Each result's 
 
 ### Your organization's agents
 
-Internal agents shouldn't be listed anywhere public. Run the `a2a-registry-mcp` server from this repository on an internal host instead: it reads a file of card URLs and exposes the same tools as the public registry.
+Internal agents shouldn't be listed anywhere public. Run a registry MCP server inside your network instead, one that lists your agents with the same tools as the public registry: `search_agents`, `list_agents` and `get_agent`, each result with its `wellKnownURI`.
 
-```json title="agents.json"
-{
-  "agents": [
-    { "url": "https://agent1.internal/" },
-    { "url": "https://agent2.internal/card.json", "headers": { "Authorization": "Bearer {env:AGENT2_TOKEN}" } }
-  ]
-}
-```
-
-Build its image and run one shared container, with the folder that holds `agents.json` mounted at `/data`:
-
-```sh
-bun run --cwd packages/a2a-registry-mcp build
-docker build -t a2a-registry-mcp packages/a2a-registry-mcp
-docker run -d --name a2a-agents --restart unless-stopped -p 8787:8787 -v /srv/a2a-agents:/data:ro a2a-registry-mcp
-```
-
-Everyone then adds the server's URL, like any other remote MCP server:
+One such server is [`a2a-registry-mcp`](https://github.com/Vitocuc/bsc_agents/tree/main/a2a-registry-mcp), in the BSC agents repository. It reads a file of card URLs, runs as one shared Docker container, and its README covers the agents file and the deployment. Everyone then adds the server's URL, like any other remote MCP server:
 
 ```json
 {
@@ -144,9 +127,8 @@ Everyone then adds the server's URL, like any other remote MCP server:
 }
 ```
 
-- The server contacts only the URLs in its file, and rereads the file when it changes.
-- It has no token: keep it on the internal network or VPN, never on a host reachable from the internet.
-- `GET /health` answers `ok` for health checks.
+- Keep such a server on the internal network or VPN. A registry without a token must never be reachable from the internet.
+- OpenCode only reads it: it never registers agents anywhere.
 
 ### Let the model add one
 

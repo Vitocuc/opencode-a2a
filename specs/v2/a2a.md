@@ -483,17 +483,14 @@ The `a2a_add` tool takes the card URL (`url`) and an optional `name`; the defaul
 OpenCode doesn't search for agents itself. The model finds them through MCP servers in the config, and passes a result's `wellKnownURI` to `a2a_add`.
 
 - **Public agents:** the [A2A Registry](https://www.a2aregistry.org)'s hosted MCP server, `https://a2aregistry.org/mcp/`, with `search_agents`, `list_agents`, `get_agent` and more.
-- **Internal agents** stay inside the company with `packages/a2a-registry-mcp`: an MCP server that reads a file of card URLs and exposes the same tools and result fields, over stdio or HTTP. It contacts only the URLs in its file. See its README.
+- **Internal agents** stay inside the company through a registry MCP server run inside its network with the same tools and result fields. The BSC one is `a2a-registry-mcp` in the [bsc_agents](https://github.com/Vitocuc/bsc_agents) repository; OpenCode only needs its URL.
 
 ```json
 {
   "mcp": {
     "servers": {
       "a2a-registry": { "type": "remote", "url": "https://a2aregistry.org/mcp/" },
-      "company-agents": {
-        "type": "local",
-        "command": ["bun", "/path/to/a2a-registry-mcp/src/main.ts", "/path/to/agents.json"]
-      }
+      "company-agents": { "type": "remote", "url": "http://agents-host.internal:8787/" }
     }
   }
 }

@@ -27,23 +27,6 @@
         "turbo": "2.10.2",
       },
     },
-    "packages/a2a-registry-mcp": {
-      "name": "@opencode/a2a-registry-mcp",
-      "version": "2.3.0",
-      "bin": {
-        "a2a-registry-mcp": "./src/main.ts",
-      },
-      "dependencies": {
-        "@modelcontextprotocol/server": "2.4.0",
-        "@opencode/schema": "workspace:*",
-        "effect": "catalog:",
-      },
-      "devDependencies": {
-        "@tsconfig/bun": "catalog:",
-        "@types/bun": "catalog:",
-        "@typescript/native": "catalog:",
-      },
-    },
     "packages/ai": {
       "name": "@opencode/ai",
       "version": "2.3.0",
@@ -1801,8 +1784,6 @@
     "@opencode-ai/protocol": ["@opencode-ai/protocol@0.0.0-beta-18050", "", { "dependencies": { "@opencode-ai/schema": "0.0.0-beta-18050", "effect": "4.0.0-rc.111" } }, "sha512-HDQMnvGp8IU0MdBRbEuydX1WQm09BZ4HJm9iSMQwzweJuQ2HNscgzHJPIH6P02BsbbtfJ8J7sZGPItrz1tWSgw=="],
 
     "@opencode-ai/schema": ["@opencode-ai/schema@0.0.0-beta-18050", "", { "dependencies": { "@standard-schema/spec": "1.1.0", "effect": "4.0.0-rc.111" } }, "sha512-/D6VXaWlytTXR3IOiMLIKuPcfp7FQNUzRPm9z3K7UBFd1Bw4q/WZksaf5RVcBGz+0YRxYMc1V4D7MFlceSgtyg=="],
-
-    "@opencode/a2a-registry-mcp": ["@opencode/a2a-registry-mcp@workspace:packages/a2a-registry-mcp"],
 
     "@opencode/ai": ["@opencode/ai@workspace:packages/ai"],
 
