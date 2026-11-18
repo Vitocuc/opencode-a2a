@@ -115,7 +115,7 @@ Its tools include `search_agents`, `list_agents` and `get_agent`. Each result's 
 
 Internal agents shouldn't be listed anywhere public. Run a registry MCP server inside your network instead, one that lists your agents with the same tools as the public registry: `search_agents`, `list_agents` and `get_agent`, each result with its `wellKnownURI`.
 
-One such server is [`a2a-registry-mcp`](https://github.com/Vitocuc/bsc_agents/tree/main/a2a-registry-mcp), in the BSC agents repository. It reads a file of card URLs, runs as one shared Docker container, and its README covers the agents file and the deployment. Everyone then adds the server's URL, like any other remote MCP server:
+One such server is [`a2a-registry-mcp`](https://github.com/Vitocuc/bsc_agents/tree/a2a-registry-mcp), its own branch of the BSC agents repository. It reads a file of card URLs, runs as one shared Docker container, and its README covers the agents file and the deployment. Everyone then adds the server's URL, like any other remote MCP server:
 
 ```json
 {
